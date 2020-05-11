@@ -41,66 +41,50 @@ This simple idea brings the following **advantages** to Pure SIMD:
 
 ## Compiler Requirements
 
-Supports c++14 & SLP vectorization.
+C++14 & SLP vectorization.
 
 ## Interface
 
-All types and functions are defined in the namespace pure_simd;
-
-### Types
-
-The vector type is defined as 
-```c++
-template <typename... Ts>
-using vector = std::tuple<Ts...>;
-```
-Yeah, it's just a tuple. So you can use all utilities for tuple in c++ standard library.
-
-Usually, all elements in a vector are of a same type. So there is an alias template for convenience:
-```c++
-template <typename T, std::size_t N>
-using vector_n = vector<T, T ...>;
-```
-So vector_n<float, 4> is the same as vector<float, float, float, float>.
-
-You can use different types, but some operations might not work.
+Pure SIMD uses std::array as simd vector.
 
 ### Basic Constructs
 
-The `unroll` function unrolls unary/binary operations on vectors. The result's type depends on the operation.
+The `unroll` function unrolls unary/binary operations on vectors. The result's type depends on the operations.
 
-You can use it to implement other operators.
+You can use it to implement other operations.
 ```c++
-template <typename Func, typename... Args>
-inline auto unroll(Func func, vector<Args...> x, vector<Args...> y);
+template <typename Func, typename T, std::size_t N>
+inline auto unroll(Func func, std::array<T, N> x, std::array<T, N> y);
 
-template <typename Func, typename... Args>
-inline auto unroll(Func func, vector<Args...> x);
+template <typename Func, typename T, std::size_t N>
+inline auto unroll(Func func, std::array<T, N> x);
 
 ```
 
-### High-level Operators:
+### High-level Operation
 
-Currently Pure SIMD supports +, -, *, /, max, min, and cast operators;
+#### Arithmetic & Conversion Operations
 
-#### Load/Store operators:
+Currently Pure SIMD supports +, -, *, /, max, min, and cast operations;
 
-The `store` operator stores a vector's elements to continuous locations.
-The `scalar` operator constructs a vector from a scalar value;
-The `ascend_from` operator constructs a vector of ascending sequence.
+#### Load & Store Operation
+
+The `store` writes a vector's elements to continuous locations.
+The `scalar` constructs a vector from a scalar value;
+The `ascend_from` constructs a vector of ascending sequence .
 
 ```c++
-template <typename... Args>
-inline void store(vector<Args...> x, detail::first_type_t<Args...>* array);
+template <typename T, std::size_t N>
+inline void store(std::array<T, N> x, T* array);
 
 template <typename V>
-inline auto scalar(std::tuple_element_t<0, V> x)
+inline V scalar(typename V::value_type x);
 
 template <typename V>
-inline auto ascend_from(std::tuple_element_t<0, V> x, std::tuple_element_t<0, V> delta)
+inline V ascend_from(typename V::value_type start, typename V::value_type step);
 ```
 
-Apparently,  the supported operators and documents are not enough, but creating new ones is easy.
+Apparently,  the supported operations and documents are not enough, but creating new ones is easy.
 
 ## Example
 
@@ -200,11 +184,11 @@ the original one, except for some type specifications.
 ```c++
 void pure_simd_tick(float scale, float* screen)
 {
-  using namespace pure_simd;
+    using namespace pure_simd;
 
     // Select the vector size. 
-  constexpr std::size_t vector_size = 4;
-  using fvec = pure_simd::vector_n<float, vector_size>;
+    constexpr std::size_t vector_size = 4;
+    using fvec = std::array<float, vector_size>;
 
     for (int y = 0; y < SCRHEIGHT; y++) {
         float yoffs = 0.0;
@@ -332,12 +316,8 @@ I want to tell you that if we change the vector size from 4 to 32, the former wi
 
 Also, the vector size is not limited by the underlying machine, so you can enlarge it as much as you want. A major benefit of doing so is that you can exploit the power of different machines without change the code. The compiler will choose the best low-level vector size.
 
-
-
 ## To Do
 * Support more operations
 * Add tests
 * Add benchmarks
 * Keep consistencies across various compilers
-
- 
