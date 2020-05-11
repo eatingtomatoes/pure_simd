@@ -3,14 +3,20 @@
 A simple, extensible, portable, efficient and header-only SIMD library!
 
 - [Pure SIMD](#pure-simd)
+  
   * [Introduction](#introduction)
+  
   * [Compiler Requirements](#compiler-requirements)
+  
   * [Interface](#interface)
     + [Types](#types)
     + [Basic Constructs](#basic-constructs)
     + [High-level Operators:](#high-level-operators-)
     - [Load/Store operators:](#load-store-operators-)
+    
   * [Example](#example)
+  
+  * [To do](#to-do)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -325,3 +331,13 @@ You can see that the vectorized code using either Pure SIMD or intrinsics ran al
 I want to tell you that if we change the vector size from 4 to 32, the former will run as nine times faster as the latter. Thanks to the convenient interfaces, changing the size is quiet easy. 
 
 Also, the vector size is not limited by the underlying machine, so you can enlarge it as much as you want. A major benefit of doing so is that you can exploit the power of different machines without change the code. The compiler will choose the best low-level vector size.
+
+
+
+## To Do
+* Support more operations
+* Add tests
+* Add benchmarks
+* Keep consistencies across various compilers
+
+ 
