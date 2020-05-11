@@ -1,0 +1,8 @@
+*.o
+*~
+\#*\#
+.\#*
+
+.dir-locals.el
+
+build/
