@@ -32,7 +32,7 @@ void automatic_tick(float scale, float* screen)
             float r = std::min(255.0f, std::max(0.0f, ox * 255.0f));
             float g = std::min(255.0f, std::max(0.0f, oy * 255.0f));
 
-            screen[x + y * SCRHEIGHT] = r + g;
+            screen[x + y * SCRWIDTH] = r + g;
         }
     }
 }
