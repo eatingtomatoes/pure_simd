@@ -9,7 +9,7 @@ A simple, extensible, portable, efficient and header-only SIMD library!
     + [Types](#types)
     + [Basic Constructs](#basic-constructs)
     + [High-level Operators:](#high-level-operators-)
-      - [Load/Store operators:](#load-store-operators-)
+    - [Load/Store operators:](#load-store-operators-)
   * [Example](#example)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
