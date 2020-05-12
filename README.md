@@ -45,30 +45,22 @@ C++14 & SLP vectorization.
 
 ## Interface
 
-A vector in Pure SIMD is just an aligned array.
+All definitions of types and functions sit in the namespace `pure_simd`.
 
-```c++
-template <typename T, size_t N1>
-struct alignas(32) vector {
-    using value_type = T;
-    static constexpr size_t N = N1;
-    constexpr T& operator[](size_t pos) { return data[pos]; }
-    constexpr T operator[](size_t pos) const { return data[pos]; }
-    T data[N];
-};
-```
+### Types
+
+Vector in Pure SIMD models a sequence values. At present, Pure SIMD supports two concrete vector type: `pure_simd::array` and `pure_simd::tuple`.  The former is an aligned version of `std::array`, and the latter is just an alias of `std::tuple`.  
+
 ### Basic Constructs
 
-The `unroll` function unrolls unary/binary operations on vectors. The result's type depends on the operations.
+The `unroll` function unrolls unary/binary operations on vectors. The result's type depends on the operations. You can use it to implement other operations.
 
-You can use it to implement other operations.
 ```c++
-template <typename Func, typename T, std::size_t N>
-inline auto unroll(Func func, vector<T, N> x, vector<T, N> y);
+    template <typename F, typename V, typename = must_be_vector<V>>
+    inline auto unroll(F func, V x);
 
-template <typename Func, typename T, std::size_t N>
-inline auto unroll(Func func, vector<T, N> x);
-
+    template <typename F, typename V, typename = must_be_vector<V>>
+    inline auto unroll(F func, V x, V y);
 ```
 
 ### High-level Operation
@@ -79,22 +71,29 @@ Currently Pure SIMD supports +, -, *, /, max, min, and cast operations;
 
 #### Load & Store Operation
 
-The `store` writes a vector's elements to continuous locations.
-The `scalar` constructs a vector from a scalar value;
+The `store_to` writes a vector's elements to continuous locations.
+
+The `load_from` reads values from continuous locations to a vector.
+
+The `scalar_to` constructs a vector from a scalar value.
+
 The `ascend_from` constructs a vector of ascending sequence .
 
 ```c++
-template <typename T, std::size_t N>
-inline void store(vector<T, N> x, T* array);
+    template <typename V, typename T, typename = must_be_vector<V>>
+    inline void store_to(V x, T* dst);
 
-template <typename V>
-inline V scalar(typename V::value_type x);
+    template <typename V, typename T, typename = must_be_vector<V>>
+    inline V scalar(T x);
 
-template <typename V>
-inline V ascend_from(typename V::value_type start, typename V::value_type step);
+    template <typename V, typename T, typename = must_be_vector<V>>
+    inline V load_from(const T* src);
+
+    template <typename V, typename T, typename S, typename = must_be_vector<V>>
+    inline V ascend_from(T start, S step);
 ```
 
-Apparently,  the supported operations and documents are not enough, but creating new ones is easy.
+Apparently,  the supported operations and documents are not enough, but it's easy to add new ones.
 
 ## Example
 
@@ -177,6 +176,9 @@ void intrinsic_tick(float scale, float* screen)
                         yoffs4));
             }
 
+            // The following loop is not vectorized.
+            // But as it's outside of the hot loop, it doesn't affect the running time that much.
+            // (I do want to vectorize it but I can't because of some problems caused by code simplification)
             for (int lane = 0; lane < 4; lane++) {
                 float r = std::min(255.0, std::max(0.0, ox4[lane] * 255.0));
                 float g = std::min(255.0, std::max(0.0, oy4[lane] * 255.0));
@@ -198,7 +200,7 @@ void pure_simd_tick(float scale, float* screen)
 
     // Select the vector size. 
     constexpr std::size_t vector_size = 4;
-    using fvec = vector<float, vector_size>;
+    using fvec = pure_simd::array<float, vector_size>;
 
     for (int y = 0; y < SCRHEIGHT; y++) {
         float yoffs = 0.0;

@@ -41,8 +41,8 @@ void pure_simd_tick(float scale, float* screen)
 {
   using namespace pure_simd;
 
-  constexpr std::size_t vector_size = 32;
-  using fvec = pure_simd::vector<float, vector_size>;
+  constexpr std::size_t vector_size = 4;
+  using fvec = pure_simd::array<float, vector_size>;
 
     for (int y = 0; y < SCRHEIGHT; y++) {
         float yoffs = 0.0;
@@ -50,8 +50,8 @@ void pure_simd_tick(float scale, float* screen)
         float dx = scale / SCRWIDTH;
 
         for (int x = 0; x < SCRWIDTH; x += vector_size, xoffs += vector_size * dx) {
-            fvec ox = scalar<fvec>(0.0);
-            fvec oy = scalar<fvec>(0.0);
+            fvec ox = scalar<fvec>(0.0f);
+            fvec oy = scalar<fvec>(0.0f);
 
             for (int i = 0; i < 99; i++) {
                 fvec oy_x_oy = oy * oy;
@@ -62,21 +62,21 @@ void pure_simd_tick(float scale, float* screen)
                 fvec xoffs4 = ascend_from<fvec>(xoffs, dx);
                 fvec yoffs4 = scalar<fvec>(yoffs);
 
-                fvec dot_55 = scalar<fvec>(0.55);
+                fvec dot_55 = scalar<fvec>(0.55f);
 
                 oy = -(oy_x_oy - ox_x_ox - dot_55 + xoffs4);
                 ox = -(ox_x_oy + oy_x_ox - dot_55 + yoffs4);
             }
 
             fvec r = pure_simd::min(
-                scalar<fvec>(255.0),
-                pure_simd::max(scalar<fvec>(0.0), ox * scalar<fvec>(255.0)));
+                scalar<fvec>(255.0f),
+                pure_simd::max(scalar<fvec>(0.0f), ox * scalar<fvec>(255.0f)));
 
             fvec g = pure_simd::min(
-                scalar<fvec>(255.0),
-                pure_simd::max(scalar<fvec>(0.0), oy * scalar<fvec>(255.0)));
+                scalar<fvec>(255.0f),
+                pure_simd::max(scalar<fvec>(0.0f), oy * scalar<fvec>(255.0f)));
 
-            store(r + g, screen + x + y * SCRWIDTH);
+            store_to(r + g, screen + x + y * SCRWIDTH);
         }
     }
 }
