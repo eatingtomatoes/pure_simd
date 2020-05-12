@@ -45,8 +45,18 @@ C++14 & SLP vectorization.
 
 ## Interface
 
-Pure SIMD uses std::array as simd vector.
+A vector in Pure SIMD is just an aligned array.
 
+```c++
+template <typename T, size_t N1>
+struct alignas(32) vector {
+    using value_type = T;
+    static constexpr size_t N = N1;
+    constexpr T& operator[](size_t pos) { return data[pos]; }
+    constexpr T operator[](size_t pos) const { return data[pos]; }
+    T data[N];
+};
+```
 ### Basic Constructs
 
 The `unroll` function unrolls unary/binary operations on vectors. The result's type depends on the operations.
@@ -54,10 +64,10 @@ The `unroll` function unrolls unary/binary operations on vectors. The result's t
 You can use it to implement other operations.
 ```c++
 template <typename Func, typename T, std::size_t N>
-inline auto unroll(Func func, std::array<T, N> x, std::array<T, N> y);
+inline auto unroll(Func func, vector<T, N> x, vector<T, N> y);
 
 template <typename Func, typename T, std::size_t N>
-inline auto unroll(Func func, std::array<T, N> x);
+inline auto unroll(Func func, vector<T, N> x);
 
 ```
 
@@ -75,7 +85,7 @@ The `ascend_from` constructs a vector of ascending sequence .
 
 ```c++
 template <typename T, std::size_t N>
-inline void store(std::array<T, N> x, T* array);
+inline void store(vector<T, N> x, T* array);
 
 template <typename V>
 inline V scalar(typename V::value_type x);
@@ -188,7 +198,7 @@ void pure_simd_tick(float scale, float* screen)
 
     // Select the vector size. 
     constexpr std::size_t vector_size = 4;
-    using fvec = std::array<float, vector_size>;
+    using fvec = vector<float, vector_size>;
 
     for (int y = 0; y < SCRHEIGHT; y++) {
         float yoffs = 0.0;
