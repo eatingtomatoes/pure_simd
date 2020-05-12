@@ -111,7 +111,7 @@ void automatic_tick(float scale, float* screen)
             float ox = 0.0f;
             float oy = 0.0f;
 
-            // The following loop domintes the function's performance.
+            // The following loop dominates the function's performance.
             for (int i = 0; i < 99; i++) {
                 float oy_x_oy = oy * oy;
                 float ox_x_ox = ox * ox;
