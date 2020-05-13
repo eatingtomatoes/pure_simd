@@ -281,7 +281,7 @@ namespace pure_simd {
     namespace detail {
 
         template <typename V, typename T, std::size_t... Is>
-        inline V load_from_impl(const T* src)
+        inline V load_from_impl(const T* src, std::index_sequence<Is...>)
         {
             return { src[Is]... };
         }
