@@ -89,11 +89,11 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename T, std::size_t N>
-    using tuple_n = typename detail::tuple_n_impl<T, index_sequence_of<T>>::type;
+    using tuple_n = typename detail::tuple_n_impl<T, std::make_index_sequence<N>>::type;
 
     // `array' is another vector type.
-    template <typename T, size_t N1>
-    struct alignas(32) array {
+    template <typename T, std::size_t N1, std::size_t Alignment = 32>
+    struct alignas(Alignment) array {
         using value_type = T;
 
         using size_type = std::size_t;
@@ -135,17 +135,17 @@ namespace pure_simd {
 
     namespace trait {
 
-        template <typename T, std::size_t N>
-        struct as_vector<array<T, N>> {
+        template <typename T, std::size_t N, std::size_t Alignment>
+        struct as_vector<array<T, N, Alignment>> {
             template <typename U, typename...>
-            using with_element = array<U, N>;
+            using with_element = array<U, N, Alignment>;
 
             static constexpr bool is_vector = true;
 
             static constexpr std::size_t size = N;
 
             template <std::size_t I>
-            static constexpr auto elem_at(array<T, N> x)
+            static constexpr auto elem_at(array<T, N, Alignment> x)
             {
                 return x[I];
             }
@@ -310,6 +310,72 @@ namespace pure_simd {
         return detail::ascend_from_impl<V>(
             start, step, std::make_integer_sequence<I, size_v<V>> {} //
         );
+    }
+
+    namespace detail {
+
+        constexpr bool is_power_of_two(std::size_t N)
+        {
+            return (N & (N - 1)) == 0;
+        }
+
+    } // namespace detail
+
+    template <typename T, T Value>
+    struct constexpr_value_t {
+        using type = T;
+        static constexpr T value = Value;
+    };
+
+    template <std::size_t N>
+    using constexpr_size_t = constexpr_value_t<std::size_t, N>;
+
+    namespace detail {
+
+        template <typename S, S Stride, bool Zero>
+        struct unroll_loop_impl;
+
+        template <typename S, S Value>
+        struct unroll_loop_impl<S, Value, true> {
+            template <typename... Args>
+            auto operator()(Args...) {}
+        };
+
+        template <typename S, S Stride>
+        struct unroll_loop_impl<S, Stride, false> {
+            template <typename I, typename F>
+            auto operator()(I start, S iterations, F func)
+                -> decltype(func(constexpr_size_t<Stride> {}, start), void())
+            {
+                static_assert(Stride > 0ull && detail::is_power_of_two(Stride), "");
+
+                auto rem = iterations % Stride;
+                auto bound = start + (iterations - rem);
+
+                for (auto i = start; i < bound; i += Stride) {
+                    func(constexpr_value_t<S, Stride> {}, i);
+                }
+
+                if (rem > 0) {
+                    unroll_loop_impl<S, Stride / 2, Stride / 2 == S {}> {}(bound, rem, func);
+                }
+            }
+        };
+
+    } // namespace detail
+
+    template <typename S, S Stride, typename I, typename F>
+    inline auto unroll_loop(I start, S iterations, F func)
+        -> decltype(func(constexpr_value_t<S, Stride> {}, start), void())
+    {
+        detail::unroll_loop_impl<S, Stride, Stride == S {}> {}(start, iterations, func);
+    }
+
+    template <std::size_t Stride, typename I, typename F>
+    inline auto unroll_loop(I start, std::size_t iterations, F func)
+        -> decltype(func(constexpr_size_t<Stride> {}, start), void())
+    {
+        detail::unroll_loop_impl<std::size_t, Stride, Stride == 0ull> {}(start, iterations, func);
     }
 
 } // namespace pure_simd

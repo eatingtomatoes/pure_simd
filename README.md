@@ -11,8 +11,8 @@ A simple, extensible, portable, efficient and header-only SIMD library!
   * [Interface](#interface)
     + [Types](#types)
     + [Basic Constructs](#basic-constructs)
-    + [High-level Operators:](#high-level-operators-)
-    - [Load/Store operators:](#load-store-operators-)
+    + [High-level Operators:](#high-level-operators)
+    + [Load/Store operators:](#load-store-operators)
     
   * [Example](#example)
   
@@ -49,7 +49,28 @@ All definitions of types and functions sit in the namespace `pure_simd`.
 
 ### Types
 
+#### vector
+
 Vector in Pure SIMD models a sequence values. At present, Pure SIMD supports two concrete vector type: `pure_simd::array` and `pure_simd::tuple`.  The former is an aligned version of `std::array`, and the latter is just an alias of `std::tuple`.  
+
+#### constexpr_value_t 
+
+`constexpr_value_t` carries a value at the type level. Given an object of this type, you can access the carried **compile-time** value by `decltype(object)::value`.  It's often used in combination with `unroll_loop`.
+
+```c++
+    template <typename T, T Value>
+    struct constexpr_value_t {
+        using type = T;
+        static constexpr T value = Value;
+    };
+```
+
+For convenience,  an alias for std::size_t is provided.
+
+```c++
+    template <std::size_t N>
+    using constexpr_size_t = constexpr_value_t<std::size_t, N>;
+```
 
 ### Basic Constructs
 
@@ -76,9 +97,9 @@ In order to make the use of lambda look neat,  two variants are provided.
 So you can write code like this:
 
 ```c++
-auto zs = unroll(xs, ys, [](auto x, auto y) {
-	return x * y;
-});
+	auto zs = unroll(xs, ys, [](auto x, auto y) {
+		return x * y;
+	});
 ```
 
 ### High-level Operation
@@ -117,6 +138,51 @@ You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conver
 ```c++
     template <typename V, typename I = std::size_t, typename T, typename S, typename = must_be_vector<V>>
     inline V ascend_from(T start, S step);
+```
+
+#### Helpers for unrolling loops 
+
+When the number of iterations is not a multiple of your vectors' size, extra code is need to handle the small tail. `unroll_loop` can do that for you.
+
+```c++
+    template <typename S, S Stride, typename I, typename F>
+    inline auto unroll_loop(I start, S iterations, F func)
+        -> decltype(func(constexpr_value_t<S, Stride> {}, start), void());
+```
+
+Here is the code without `unroll_loop`:
+
+```c++
+        size_t vector_size = 8;
+        size_t start = 0;
+        size_t rem = SCRWIDTH % vector_size;
+        size_t bound = SCRWIDTH - rem;
+
+        for (size_t i = start; i < bound; ++i) {
+            // code using vectors of size 8.
+        }
+
+        vector_size /= 2;
+        start = bound;
+
+        if (rem >= vector_size) {
+            rem = rem % vector_size;
+            bound = SCRWIDTH - rem;
+
+            for (size_t i = start; i < bound; ++i) {
+                // code using vectors of size 4.
+            } 
+            ...
+        }
+```
+
+With `unroll_loop`, you can write like this:
+
+```c++
+        unroll_loop<std::size_t, vector_size>(0, SCRWIDTH, [&](auto stride, int x) {
+            using fvec = pure_simd::array<float, decltype(stride)::value>;
+			...
+        });
 ```
 
 Apparently,  the supported operations and documents are not enough, but it's easy to add new ones.
