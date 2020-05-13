@@ -183,6 +183,18 @@ namespace pure_simd {
         return detail::unroll_impl(func, x, y, index_sequence_of<V> {});
     }
 
+    template <typename F, typename V, typename = must_be_vector<V>>
+    inline auto unroll(V x, F func)
+    {
+        return detail::unroll_impl(func, x, index_sequence_of<V> {});
+    }
+
+    template <typename F, typename V, typename = must_be_vector<V>>
+    inline auto unroll(V x, V y, F func)
+    {
+        return detail::unroll_impl(func, x, y, index_sequence_of<V> {});
+    }
+
     template <typename V, typename = must_be_vector<V>>
     inline V operator+(V x, V y)
     {
