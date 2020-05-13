@@ -296,18 +296,20 @@ namespace pure_simd {
 
     namespace detail {
 
-        template <typename V, typename T, typename S, std::size_t... Is>
-        inline V ascend_from_impl(T start, S step, std::index_sequence<Is...>)
+        template <typename V, typename T, typename S, typename I, I... Is>
+        inline V ascend_from_impl(T start, S step, std::integer_sequence<I, Is...>)
         {
             return { (start + step * Is)... };
         };
 
     } // namespace detail
 
-    template <typename V, typename T, typename S, typename = must_be_vector<V>>
+    template <typename V, typename I = std::size_t, typename T, typename S, typename = must_be_vector<V>>
     inline V ascend_from(T start, S step)
     {
-        return detail::ascend_from_impl<V>(start, step, index_sequence_of<V> {});
+        return detail::ascend_from_impl<V>(
+            start, step, std::make_integer_sequence<I, size_v<V>> {} //
+        );
     }
 
 } // namespace pure_simd

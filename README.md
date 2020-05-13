@@ -63,6 +63,24 @@ The `unroll` function unrolls unary/binary operations on vectors. The result's t
     inline auto unroll(F func, V x, V y);
 ```
 
+In order to make the use of lambda look neat,  two variants are provided.
+
+```c++
+    template <typename F, typename V, typename = must_be_vector<V>>
+    inline auto unroll(V x, F func);
+
+    template <typename F, typename V, typename = must_be_vector<V>>
+    inline auto unroll(V x, V y, F func);
+```
+
+So you can write code like this:
+
+```c++
+auto zs = unroll(xs, ys, [](auto x, auto y) {
+	return x * y;
+});
+```
+
 ### High-level Operation
 
 #### Arithmetic & Conversion Operations
@@ -73,23 +91,31 @@ Currently Pure SIMD supports +, -, *, /, max, min, and cast operations;
 
 The `store_to` writes a vector's elements to continuous locations.
 
-The `load_from` reads values from continuous locations to a vector.
-
-The `scalar_to` constructs a vector from a scalar value.
-
-The `ascend_from` constructs a vector of ascending sequence .
-
 ```c++
     template <typename V, typename T, typename = must_be_vector<V>>
     inline void store_to(V x, T* dst);
+```
 
-    template <typename V, typename T, typename = must_be_vector<V>>
-    inline V scalar(T x);
+The `load_from` reads values from continuous locations to a vector.
 
+```c++
     template <typename V, typename T, typename = must_be_vector<V>>
     inline V load_from(const T* src);
+```
 
-    template <typename V, typename T, typename S, typename = must_be_vector<V>>
+The `scalar_to` constructs a vector from a scalar value.
+
+```c++
+    template <typename V, typename T, typename = must_be_vector<V>>
+    inline V scalar(T x);
+```
+
+The `ascend_from` constructs a vector of ascending sequence , that is, V{ start + step * 0, start + step * 1, ... }.
+
+You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conversion.
+
+```c++
+    template <typename V, typename I = std::size_t, typename T, typename S, typename = must_be_vector<V>>
     inline V ascend_from(T start, S step);
 ```
 
