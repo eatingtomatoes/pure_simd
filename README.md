@@ -171,40 +171,19 @@ When the number of iterations is not a multiple of your vectors' size, extra cod
         -> decltype(func(constexpr_value_t<S, Stride> {}, start), void());
 ```
 
-Here is the code without `unroll_loop`:
+`func` should be a template function or a lambda, as it will be used to generate body for subloops of different size at compile time. `func` will be passed two arguments. The first one is an object of constexpr_value_t, telling you the size of vectors you should used in current loop. The second one is the iteration index in the global loop. 
+
+For example, suppose there is a loop of 0 up to 15, and you want to use vectors of size 4 to vectorize it, Then you write:
 
 ```c++
-        size_t vector_size = 8;
-        size_t start = 0;
-        size_t rem = SCRWIDTH % vector_size;
-        size_t bound = SCRWIDTH - rem;
-
-        for (size_t i = start; i < bound; ++i) {
-            // code using vectors of size 8.
-        }
-
-        vector_size /= 2;
-        start = bound;
-
-        if (rem >= vector_size) {
-            rem = rem % vector_size;
-            bound = SCRWIDTH - rem;
-
-            for (size_t i = start; i < bound; ++i) {
-                // code using vectors of size 4.
-            } 
+	unroll_loop<int, 4>(0, 15, [&](auto stride, int i) {
+            constexpr std::size_t vector_size = decltype(stride)::value;  // it will be 4, 2, 1
+            using fvec = array<float, vector_size>;  	
             ...
-        }
+	});
 ```
 
-With `unroll_loop`, you can write like this:
-
-```c++
-        unroll_loop<std::size_t, vector_size>(0, SCRWIDTH, [&](auto stride, int x) {
-            using fvec = array<float, decltype(stride)::value>;
-			...
-        });
-```
+Then `unroll_loop` will generate three loops,  iterating from 0 to 12, 12 to 14 and 14 to 15.
 
 At present,  the supported operations  are not enough, but it's easy to add new ones.
 
