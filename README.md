@@ -9,8 +9,7 @@ A simple, extensible, portable, efficient and header-only SIMD library!
   * [Interface](#interface)
     + [Types](#types)
     + [Basic Constructs](#basic-constructs)
-    + [High-level Operators:](#high-level-operators)
-    + [Load/Store operators:](#load-store-operators)
+    + [High-level Operations](#high-level-operations) 
   * [Example](#example)
   * [Test and Benchmark](#test-and-benchmark)
   * [To do](#to-do)
@@ -122,7 +121,7 @@ So you can write code like this:
 	});
 ```
 
-### High-level Operation
+### High-level Operations
 
 #### Arithmetic & Conversion Operations
 
@@ -357,12 +356,9 @@ void pure_simd_tick(float scale, float* screen)
 Here is the result of a benchmark, which was compiled  using clang++ 9.0 with -O3 and -march=native and executed on  Ubuntu 18.04 with Intel Core i7-9750H CPU, 
 
 ```
----------------------------------------------------------------------------------
-Benchmark                         					Time             CPU   Iterations
---------------------------------------------------------------------------------
-BM_automatic_tick_mean          109 ms          109 ms             10 
-BM_intrinsic_tick_mean         		33.5 ms         33.5 ms            10 
-BM_pure_simd_tick_mean         27.8 ms         27.8 ms           10 
+BM_automatic_tick_mean        114 ms 
+BM_intrinsic_tick_mean            33.8 ms  
+BM_pure_simd_tick_mean       27.4 ms 
 ```
 
 You can see that the vectorized code using either Pure SIMD or intrinsics ran almost as three times faster as the scalar one. And the one using Pure SIMD is also a bit faster than the one using intrinsics. If you change the vector size from 4 to 32, the former will run as nine times faster as the latter! Thanks to the convenient interfaces, changing the size is quiet easy. 
