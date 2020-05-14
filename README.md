@@ -5,17 +5,14 @@ A simple, extensible, portable, efficient and header-only SIMD library!
 - [Pure SIMD](#pure-simd)
   
   * [Introduction](#introduction)
-  
   * [Compiler Requirements](#compiler-requirements)
-  
   * [Interface](#interface)
     + [Types](#types)
     + [Basic Constructs](#basic-constructs)
     + [High-level Operators:](#high-level-operators)
     + [Load/Store operators:](#load-store-operators)
-    
   * [Example](#example)
-  
+  * [Test and Benchmark](#test-and-benchmark)
   * [To do](#to-do)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
@@ -53,6 +50,29 @@ All definitions of types and functions sit in the namespace `pure_simd`.
 
 Vector in Pure SIMD models a sequence values. At present, Pure SIMD supports two concrete vector type: `pure_simd::array` and `pure_simd::tuple`.  The former is an aligned version of `std::array`, and the latter is just an alias of `std::tuple`.  
 
+```c++
+    template <typename T, std::size_t N, std::size_t Align = 32>
+    struct alignas(Align) array;
+
+    template <typename... Args>
+    using tuple = std::tuple<Args...>;
+
+    template <typename T, std::size_t N>
+    using tuple_n = typename tuple<T, T, ...> // tuple of N T values
+```
+
+And there are two functions for switching between them.
+
+```c++
+    template <std::size_t Align = 32, typename... Args>
+    inline auto to_array(tuple<Args...> xs);
+
+    template <typename T, std::size_t N, std::size_t Align>
+    inline auto to_tuple(array<T, N, Align> xs);
+```
+
+
+
 #### constexpr_value_t 
 
 `constexpr_value_t` carries a value at the type level. Given an object of this type, you can access the carried **compile-time** value by `decltype(object)::value`.  It's often used in combination with `unroll_loop`.
@@ -84,7 +104,7 @@ The `unroll` function unrolls unary/binary operations on vectors. The result's t
     inline auto unroll(F func, V x, V y);
 ```
 
-In order to make the use of lambda look neat,  two variants are provided.
+To facilitate the use of lambda,  two variants are provided.
 
 ```c++
     template <typename F, typename V, typename = must_be_vector<V>>
@@ -97,8 +117,8 @@ In order to make the use of lambda look neat,  two variants are provided.
 So you can write code like this:
 
 ```c++
-	auto zs = unroll(xs, ys, [](auto x, auto y) {
-		return x * y;
+	auto zs = unroll(xs, ys, [](auto a, auto b) {
+		return a* b;
 	});
 ```
 
@@ -106,7 +126,9 @@ So you can write code like this:
 
 #### Arithmetic & Conversion Operations
 
-Currently Pure SIMD supports +, -, *, /, max, min, and cast operations;
+Currently Pure SIMD supports +, -, *, /, %, ^, &, |, ~, !, <, >, <<,  >>, ==, !=, <=, >=, &&, ||, max, min, and cast operations.
+
+Note that <, >, ==, !=, <= and >= are not defined for tuples, or they will conflict with those in the c++ standard library.
 
 #### Load & Store Operation
 
@@ -142,7 +164,7 @@ You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conver
 
 #### Helpers for unrolling loops 
 
-When the number of iterations is not a multiple of your vectors' size, extra code is need to handle the small tail. `unroll_loop` can do that for you.
+When the number of iterations is not a multiple of your vectors' size, extra code is need to handle the tail end. `unroll_loop` can do that for you.
 
 ```c++
     template <typename S, S Stride, typename I, typename F>
@@ -180,12 +202,12 @@ With `unroll_loop`, you can write like this:
 
 ```c++
         unroll_loop<std::size_t, vector_size>(0, SCRWIDTH, [&](auto stride, int x) {
-            using fvec = pure_simd::array<float, decltype(stride)::value>;
+            using fvec = array<float, decltype(stride)::value>;
 			...
         });
 ```
 
-Apparently,  the supported operations and documents are not enough, but it's easy to add new ones.
+At present,  the supported operations  are not enough, but it's easy to add new ones.
 
 ## Example
 
@@ -332,96 +354,37 @@ void pure_simd_tick(float scale, float* screen)
 }
 ```
 
-Here is the driver code, which runs a simple benchmark.
-
-```c++
-void drive(const char* name, Ticker ticker, unsigned itimes)
-{
-    using namespace chrono;
-
-    vector<float> screen(SCRWIDTH * SCRHEIGHT, 0.0);
-
-    float scale = 0.0;
-
-    for (unsigned i = 0; i < itimes; ++i) {
-        auto start = steady_clock::now();
-
-        scale += i / 10.0;
-        ticker(scale, screen.data());
-
-        auto done = steady_clock::now();
-        unsigned millis = duration_cast<milliseconds>(done - start).count();
-        cout << name << " cost " << millis << "ms" << endl;
-    }
-
-    cout << name << " sum = " << accumulate(screen.begin(), screen.end(), 0.0) << endl << endl;
-}
-
-int main(int argc, char** argv)
-{
-    if (argc != 2) {
-        cerr << "Usage: " << argv[0] << " <iteration-times>" << endl;
-        exit(-1);
-    }
-
-    unsigned itimes = atoi(argv[1]);
-
-    drive("automatic", &automatic_tick, itimes);
-
-    drive("pure_simd", &pure_simd_tick, itimes);
-
-    drive("intrinsic", &intrinsic_tick, itimes);
-}
+Here is the result of a benchmark, which was compiled  using clang++ 9.0 with -O3 and -march=native and executed on  Ubuntu 18.04 with Intel Core i7-9750H CPU, 
 
 ```
-
-After compiling the code using clang++ 9.0 with -O3 and -march=native on Ubuntu 18.04 with Intel Core i7-9750H CPU and running it with itimes = 10, the program gave the following outputs: 
-
-```
-automatic cost 142ms
-automatic cost 109ms
-automatic cost 109ms
-automatic cost 108ms
-automatic cost 112ms
-automatic cost 111ms
-automatic cost 108ms
-automatic cost 108ms
-automatic cost 108ms
-automatic cost 108ms
-automatic sum = 8.91347e+06
-
-pure_simd cost 25ms
-pure_simd cost 25ms
-pure_simd cost 25ms
-pure_simd cost 25ms
-pure_simd cost 26ms
-pure_simd cost 25ms
-pure_simd cost 26ms
-pure_simd cost 26ms
-pure_simd cost 25ms
-pure_simd cost 25ms
-pure_simd sum = 8.91347e+06
-
-intrinsic cost 34ms
-intrinsic cost 34ms
-intrinsic cost 34ms
-intrinsic cost 34ms
-intrinsic cost 34ms
-intrinsic cost 38ms
-intrinsic cost 35ms
-intrinsic cost 35ms
-intrinsic cost 35ms
-intrinsic cost 34ms
-intrinsic sum = 8.91347e+06
+---------------------------------------------------------------------------------
+Benchmark                         					Time             CPU   Iterations
+--------------------------------------------------------------------------------
+BM_automatic_tick_mean          109 ms          109 ms             10 
+BM_intrinsic_tick_mean         		33.5 ms         33.5 ms            10 
+BM_pure_simd_tick_mean         27.8 ms         27.8 ms           10 
 ```
 
-You can see that the vectorized code using either Pure SIMD or intrinsics ran almost as four times faster as the scalar one. And the one using Pure SIMD is also faster than the one using intrinsics. It could be unfair but
-I want to tell you that if we change the vector size from 4 to 32, the former will run as nine times faster as the latter. Thanks to the convenient interfaces, changing the size is quiet easy. 
+You can see that the vectorized code using either Pure SIMD or intrinsics ran almost as three times faster as the scalar one. And the one using Pure SIMD is also a bit faster than the one using intrinsics. If you change the vector size from 4 to 32, the former will run as nine times faster as the latter! Thanks to the convenient interfaces, changing the size is quiet easy. 
 
 Also, the vector size is not limited by the underlying machine, so you can enlarge it as much as you want. A major benefit of doing so is that you can exploit the power of different machines without change the code. The compiler will choose the best low-level vector size.
 
+## Test and Benchmark
+
+**Note** that the library is header-only, but Conan is needed to run the tests and benchmarks.
+
+```shell
+cd pure_simd
+mkdir build && cd build
+conan install ..
+cmake ..
+cmake --build .
+./bin/test_pure_simd
+./bin/benchmark_pure_simd
+```
+
 ## To Do
-* Support more operations
-* Add tests
-* Add benchmarks
+* Add more operations  & documents 
+* Add examples & benchmarks
 * Keep consistencies across various compilers
+

@@ -21,7 +21,7 @@ namespace pure_simd {
             // static constexpr size;
 
             // template <std::size_t I, typename V>
-            // constexpr auto elem_at(V x);
+            // auto elem_at(V x);
         };
 
         template <typename V, typename... Args>
@@ -37,7 +37,7 @@ namespace pure_simd {
         constexpr std::size_t size_v = as_vector<V>::size;
 
         template <std::size_t I, typename V>
-        constexpr auto elem_at(V x)
+        inline auto elem_at(V x)
         {
             return as_vector<V>::template elem_at<I>(x);
         }
@@ -92,8 +92,8 @@ namespace pure_simd {
     using tuple_n = typename detail::tuple_n_impl<T, std::make_index_sequence<N>>::type;
 
     // `array' is another vector type.
-    template <typename T, std::size_t N1, std::size_t Alignment = 32>
-    struct alignas(Alignment) array {
+    template <typename T, std::size_t N1, std::size_t Align = 32>
+    struct alignas(Align) array {
         using value_type = T;
 
         using size_type = std::size_t;
@@ -130,22 +130,26 @@ namespace pure_simd {
 
         constexpr const_iterator end() const { return data + N; }
 
+        constexpr const_iterator cbegin() const { return data; }
+
+        constexpr const_iterator cend() const { return data + N; }
+
         T data[N];
     };
 
     namespace trait {
 
-        template <typename T, std::size_t N, std::size_t Alignment>
-        struct as_vector<array<T, N, Alignment>> {
+        template <typename T, std::size_t N, std::size_t Align>
+        struct as_vector<array<T, N, Align>> {
             template <typename U, typename...>
-            using with_element = array<U, N, Alignment>;
+            using with_element = array<U, N, Align>;
 
             static constexpr bool is_vector = true;
 
             static constexpr std::size_t size = N;
 
             template <std::size_t I>
-            static constexpr auto elem_at(array<T, N, Alignment> x)
+            static constexpr auto elem_at(array<T, N, Align> x)
             {
                 return x[I];
             }
@@ -155,6 +159,33 @@ namespace pure_simd {
 
     namespace detail {
 
+        template <std::size_t Align, typename T, typename... Args, std::size_t... Is>
+        inline auto to_array(tuple<T, Args...> xs, std::index_sequence<Is...>)
+        {
+            return pure_simd::array<T, sizeof...(Is), Align> { std::get<Is>(xs)... };
+        }
+
+        template <typename T, std::size_t N, std::size_t Align, std::size_t... Is>
+        inline auto to_tuple(array<T, N, Align> xs, std::index_sequence<Is...>)
+        {
+            return tuple_n<T, N> { xs[Is]... };
+        }
+
+    } // namespace detail
+
+    template <std::size_t Align = 32, typename... Args>
+    inline auto to_array(tuple<Args...> xs)
+    {
+        return detail::to_array<Align>(xs, std::index_sequence_for<Args...> {});
+    }
+
+    template <typename T, std::size_t N, std::size_t Align>
+    inline auto to_tuple(array<T, N, Align> xs)
+    {
+        return detail::to_tuple(xs, std::make_index_sequence<N> {});
+    }
+
+    namespace detail {
         template <typename F, typename V, std::size_t... Is>
         inline auto unroll_impl(F func, V x, std::index_sequence<Is...>)
             -> with_element_t<V, decltype(func(elem_at<Is>(x)))...>
@@ -198,49 +229,158 @@ namespace pure_simd {
     template <typename V, typename = must_be_vector<V>>
     inline V operator+(V x, V y)
     {
-        return unroll([](auto a, auto b) { return a + b; }, x, y);
+        return unroll(x, y, [](auto a, auto b) { return a + b; });
     }
 
     template <typename V, typename = must_be_vector<V>>
     inline V operator-(V x, V y)
     {
-        return unroll([](auto a, auto b) { return a - b; }, x, y);
+        return unroll(x, y, [](auto a, auto b) { return a - b; });
     }
 
     template <typename V, typename = must_be_vector<V>>
     inline V operator-(V x)
     {
-        return unroll([](auto a) { return -a; }, x);
+        return unroll(x, [](auto a) { return -a; });
     }
 
     template <typename V, typename = must_be_vector<V>>
     inline V operator*(V x, V y)
     {
-        return unroll([](auto a, auto b) { return a * b; }, x, y);
+        return unroll(x, y, [](auto a, auto b) { return a * b; });
     }
 
     template <typename V, typename = must_be_vector<V>>
     inline V operator/(V x, V y)
     {
-        return unroll([](auto a, auto b) { return a / b; }, x, y);
+        return unroll(x, y, [](auto a, auto b) { return a / b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline V operator%(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a % b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline V operator^(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a ^ b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline V operator&(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a & b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline V operator|(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a | b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline V operator~(V x)
+    {
+        return unroll(x, [](auto a) { return ~a; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline auto operator!(V x)
+    {
+        return unroll(x, [](auto a) { return !a; });
+    }
+
+    namespace detail {
+        template <typename>
+        struct is_tuple : std::false_type {
+        };
+
+        template <typename... Args>
+        struct is_tuple<tuple<Args...>> {
+        };
+
+        template <typename V>
+        using not_tuple = std::enable_if_t<!is_tuple<V>::value>;
+    }
+
+    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
+    inline auto operator<(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a < b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
+    inline auto operator>(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a > b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline V operator<<(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a << b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline V operator>>(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a >> b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
+    inline auto operator==(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a == b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
+    inline auto operator!=(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a != b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
+    inline auto operator<=(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a <= b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
+    inline auto operator>=(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a >= b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline auto operator&&(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a && b; });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    inline auto operator||(V x, V y)
+    {
+        return unroll(x, y, [](auto a, auto b) { return a || b; });
     }
 
     template <typename V, typename = must_be_vector<V>>
     inline V max(V x, V y)
     {
-        return unroll([](auto a, auto b) { return std::max(a, b); }, x, y);
+        return unroll(x, y, [](auto a, auto b) { return std::max(a, b); });
     }
 
     template <typename V, typename = must_be_vector<V>>
     inline V min(V x, V y)
     {
-        return unroll([](auto a, auto b) { return std::min(a, b); }, x, y);
+        return unroll(x, y, [](auto a, auto b) { return std::min(a, b); });
     }
 
     template <typename T, typename V, typename = must_be_vector<V>>
-    inline with_element_t<V, T> cast(V x)
+    inline auto cast_to(V x)
     {
-        return unroll([](auto a) { return static_cast<T>(a); }, x);
+        return unroll(x, [](auto a) { return static_cast<T>(a); });
     }
 
     namespace detail {
@@ -260,7 +400,6 @@ namespace pure_simd {
     }
 
     namespace detail {
-
         template <std::size_t, typename T>
         constexpr T identity(T x) { return x; }
 

@@ -5,11 +5,30 @@ project(pure_simd VERSION 0.1)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "-O3 -march=native")
 
-include_directories(
-  include
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup()
+
+include_directories(include)
+
+add_executable(
+  benchmark_pure_simd
+  benchmark/main.cpp
+  benchmark/simple_shader.cpp
   )
 
-add_executable(bench
-  src/main.cpp
-  src/shader.cpp
+target_link_libraries(
+  benchmark_pure_simd
+  ${CONAN_LIBS_BENCHMARK}
   )
+
+add_executable(
+  test_pure_simd
+  test/test_array.cpp
+  test/test_tuple.cpp  
+  )
+
+target_link_libraries(
+  test_pure_simd
+  ${CONAN_LIBS_GTEST}
+  )
+

@@ -1,7 +1,0 @@
-#ifndef DRIVER_CONFIG_H
-#define DRIVER_CONFIG_H
-
-#define SCRHEIGHT 512
-#define SCRWIDTH 512
-
-#endif /* DRIVER_CONFIG_H */
