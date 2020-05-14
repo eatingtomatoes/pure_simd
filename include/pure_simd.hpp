@@ -63,7 +63,7 @@ namespace pure_simd {
 
             static constexpr std::size_t size = sizeof...(Args);
 
-            template <typename I>
+            template <std::size_t I>
             static constexpr auto elem_at(tuple<Args...> x)
             {
                 return std::get<I>(x);

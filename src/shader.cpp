@@ -93,7 +93,7 @@ void pure_simd_tick(float scale, float* screen)
     using namespace pure_simd;
 
     constexpr std::size_t vector_size = 4;
-    using fvec = pure_simd::array<float, vector_size>;
+    using fvec = pure_simd::tuple_n<float, vector_size>;
 
     for (int y = 0; y < SCRHEIGHT; y++) {
         float yoffs = 0.0;
