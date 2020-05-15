@@ -39,7 +39,7 @@ namespace pure_simd {
         constexpr size_t size_v = as_vector<V>::size;
 
         template <size_t I, typename V>
-        inline auto elem_at(V x)
+        constexpr auto elem_at(V x)
         {
             return as_vector<V>::template elem_at<I>(x);
         }
@@ -190,13 +190,13 @@ namespace pure_simd {
     namespace detail {
 
         template <size_t Align, typename T, typename... Args, size_t... Is>
-        inline auto to_array(tuple<T, Args...> xs, std::index_sequence<Is...>)
+        constexpr auto to_array(tuple<T, Args...> xs, std::index_sequence<Is...>)
         {
             return pure_simd::array<T, sizeof...(Is), Align> { std::get<Is>(xs)... };
         }
 
         template <typename T, size_t N, size_t Align, size_t... Is>
-        inline auto to_tuple(array<T, N, Align> xs, std::index_sequence<Is...>)
+        constexpr auto to_tuple(array<T, N, Align> xs, std::index_sequence<Is...>)
         {
             return tuple_n<T, N> { xs[Is]... };
         }
@@ -204,27 +204,27 @@ namespace pure_simd {
     } // namespace detail
 
     template <size_t Align = 32, typename... Args>
-    inline auto to_array(tuple<Args...> xs)
+    constexpr auto to_array(tuple<Args...> xs)
     {
         return detail::to_array<Align>(xs, std::index_sequence_for<Args...> {});
     }
 
     template <typename T, size_t N, size_t Align>
-    inline auto to_tuple(array<T, N, Align> xs)
+    constexpr auto to_tuple(array<T, N, Align> xs)
     {
         return detail::to_tuple(xs, std::make_index_sequence<N> {});
     }
 
     namespace detail {
         template <typename F, typename V, size_t... Is>
-        inline auto unroll_impl(F func, V x, std::index_sequence<Is...>)
+        constexpr auto unroll_impl(F func, V x, std::index_sequence<Is...>)
             -> with_element_t<V, decltype(func(elem_at<Is>(x)))...>
         {
             return { func(elem_at<Is>(x))... };
         }
 
         template <typename F, typename V0, typename V1, size_t... Is>
-        inline auto unroll_impl(F func, V0 x, V1 y, std::index_sequence<Is...>)
+        constexpr auto unroll_impl(F func, V0 x, V1 y, std::index_sequence<Is...>)
             -> with_element_t<V0, decltype(func(elem_at<Is>(x), elem_at<Is>(y)))...>
         {
             return { func(elem_at<Is>(x), elem_at<Is>(y))... };
@@ -233,7 +233,7 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(F func, V x)
+    constexpr auto unroll(F func, V x)
     {
         return detail::unroll_impl(func, x, index_sequence_of<V> {});
     }
@@ -243,13 +243,13 @@ namespace pure_simd {
         typename = must_be_vector<V0>,
         typename = must_be_vector<V1>,
         typename = must_be_compatible<V0, V1>>
-    inline auto unroll(F func, V0 x, V1 y)
+    constexpr auto unroll(F func, V0 x, V1 y)
     {
         return detail::unroll_impl(func, x, y, index_sequence_of<V0> {});
     }
 
     template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(V x, F func)
+    constexpr auto unroll(V x, F func)
     {
         return detail::unroll_impl(func, x, index_sequence_of<V> {});
     }
@@ -259,7 +259,7 @@ namespace pure_simd {
         typename = must_be_vector<V0>,
         typename = must_be_vector<V1>,
         typename = must_be_compatible<V0, V1>>
-    inline auto unroll(V0 x, V1 y, F func)
+    constexpr auto unroll(V0 x, V1 y, F func)
     {
         return detail::unroll_impl(func, x, y, index_sequence_of<V0> {});
     }
@@ -270,14 +270,14 @@ namespace pure_simd {
         typename = must_be_vector<V0>,                              \
         typename = must_be_vector<V1>,                              \
         typename = must_be_compatible<V0, V1>>                      \
-    inline auto operator op(V0 x, V1 y)                             \
+    constexpr auto operator op(V0 x, V1 y)                             \
     {                                                               \
         return unroll(x, y, [](auto a, auto b) { return a op b; }); \
     }
 
 #define OVERLOAD_UNARY_OPERATOR(op)                     \
     template <typename V, typename = must_be_vector<V>> \
-    inline auto operator op(V x)                        \
+    constexpr auto operator op(V x)                        \
     {                                                   \
         return unroll(x, [](auto a) { return op a; });  \
     }
@@ -289,7 +289,7 @@ namespace pure_simd {
         typename = must_be_vector<V0>,                                             \
         typename = must_be_vector<V1>,                                             \
         typename = std::enable_if_t<!is_tuple<V0>::value || !is_tuple<V1>::value>> \
-    inline auto operator op(V0 x, V1 y)                                            \
+    constexpr auto operator op(V0 x, V1 y)                                            \
     {                                                                              \
         return unroll(x, y, [](auto a, auto b) { return a op b; });                \
     }
@@ -341,19 +341,19 @@ namespace pure_simd {
 #undef OVERLOAD_COMPARISON_OPERATOR
 
     template <typename V, typename = must_be_vector<V>>
-    inline V max(V x, V y)
+    constexpr V max(V x, V y)
     {
         return unroll(x, y, [](auto a, auto b) { return std::max(a, b); });
     }
 
     template <typename V, typename = must_be_vector<V>>
-    inline V min(V x, V y)
+    constexpr V min(V x, V y)
     {
         return unroll(x, y, [](auto a, auto b) { return std::min(a, b); });
     }
 
     template <typename T, typename V, typename = must_be_vector<V>>
-    inline auto cast_to(V x)
+    constexpr auto cast_to(V x)
     {
         return unroll(x, [](auto a) { return static_cast<T>(a); });
     }
@@ -361,7 +361,7 @@ namespace pure_simd {
     namespace detail {
 
         template <typename V, typename T, size_t... Is>
-        inline void store_to_impl(V x, T* dst, std::index_sequence<Is...>)
+        constexpr void store_to_impl(V x, T* dst, std::index_sequence<Is...>)
         {
             [](auto...) {}(((dst[Is] = elem_at<Is>(x)), true)...);
         }
@@ -369,7 +369,7 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename V, typename T, typename = must_be_vector<V>>
-    inline void store_to(V x, T* dst)
+    constexpr void store_to(V x, T* dst)
     {
         detail::store_to_impl(x, dst, index_sequence_of<V> {});
     }
@@ -380,7 +380,7 @@ namespace pure_simd {
         constexpr T identity(T x) { return x; }
 
         template <typename V, typename T, size_t... Is>
-        inline V scalar_impl(T x, std::index_sequence<Is...>)
+        constexpr V scalar_impl(T x, std::index_sequence<Is...>)
         {
             return { identity<Is>(x)... };
         }
@@ -388,7 +388,7 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename V, typename T, typename = must_be_vector<V>>
-    inline V scalar(T x)
+    constexpr V scalar(T x)
     {
         return detail::scalar_impl<V>(x, index_sequence_of<V> {});
     }
@@ -396,7 +396,7 @@ namespace pure_simd {
     namespace detail {
 
         template <typename V, typename T, size_t... Is>
-        inline V load_from_impl(const T* src, std::index_sequence<Is...>)
+        constexpr V load_from_impl(const T* src, std::index_sequence<Is...>)
         {
             return { src[Is]... };
         }
@@ -404,7 +404,7 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename V, typename T, typename = must_be_vector<V>>
-    inline V load_from(const T* src)
+    constexpr V load_from(const T* src)
     {
         return detail::load_from_impl<V>(src, index_sequence_of<V> {});
     }
@@ -412,7 +412,7 @@ namespace pure_simd {
     namespace detail {
 
         template <typename V, typename T, typename S, typename I, I... Is>
-        inline V iota_impl(T start, S step, std::integer_sequence<I, Is...>)
+        constexpr V iota_impl(T start, S step, std::integer_sequence<I, Is...>)
         {
             return { (start + step * Is)... };
         };
@@ -420,7 +420,7 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename V, typename I = size_t, typename T, typename S, typename = must_be_vector<V>>
-    inline V iota(T start, S step)
+    constexpr V iota(T start, S step)
     {
         return detail::iota_impl<V>(
             start, step, std::make_integer_sequence<I, size_v<V>> {} //
@@ -474,14 +474,14 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename S, S MaxStep, typename I, typename F>
-    inline auto unroll_loop(I start, S iterations, F func)
+    constexpr auto unroll_loop(I start, S iterations, F func)
         -> decltype(func(std::integral_constant<S, MaxStep> {}, start), void())
     {
         detail::unroll_loop_impl<S, MaxStep, MaxStep == S {}> {}(start, iterations, func);
     }
 
     template <size_t MaxStep, typename I, typename F>
-    inline auto unroll_loop(I start, size_t iterations, F func)
+    constexpr auto unroll_loop(I start, size_t iterations, F func)
         -> decltype(func(size_constant<MaxStep> {}, start), void())
     {
         detail::unroll_loop_impl<size_t, MaxStep, MaxStep == 0ull> {}(start, iterations, func);
