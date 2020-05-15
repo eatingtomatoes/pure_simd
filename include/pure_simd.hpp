@@ -7,6 +7,8 @@
 
 namespace pure_simd {
 
+    using size_t = std::size_t;
+
     namespace trait {
 
         // Every concrete vector type should specialize the `as_vector' struct.
@@ -20,7 +22,7 @@ namespace pure_simd {
 
             // static constexpr size;
 
-            // template <std::size_t I, typename V>
+            // template <size_t I, typename V>
             // auto elem_at(V x);
         };
 
@@ -34,9 +36,9 @@ namespace pure_simd {
         using must_be_vector = std::enable_if_t<is_vector_v<T>>;
 
         template <typename V>
-        constexpr std::size_t size_v = as_vector<V>::size;
+        constexpr size_t size_v = as_vector<V>::size;
 
-        template <std::size_t I, typename V>
+        template <size_t I, typename V>
         inline auto elem_at(V x)
         {
             return as_vector<V>::template elem_at<I>(x);
@@ -68,9 +70,9 @@ namespace pure_simd {
 
             static constexpr bool is_vector = true;
 
-            static constexpr std::size_t size = sizeof...(Args);
+            static constexpr size_t size = sizeof...(Args);
 
-            template <std::size_t I>
+            template <size_t I>
             static constexpr auto elem_at(tuple<Args...> x)
             {
                 return std::get<I>(x);
@@ -96,29 +98,29 @@ namespace pure_simd {
 
     namespace detail {
 
-        template <typename T, std::size_t>
+        template <typename T, size_t>
         using type_of = T;
 
         template <typename, typename>
         struct tuple_n_impl {
         };
 
-        template <typename T, std::size_t... Is>
+        template <typename T, size_t... Is>
         struct tuple_n_impl<T, std::index_sequence<Is...>> {
             using type = tuple<type_of<T, Is>...>;
         };
 
     } // namespace detail
 
-    template <typename T, std::size_t N>
+    template <typename T, size_t N>
     using tuple_n = typename detail::tuple_n_impl<T, std::make_index_sequence<N>>::type;
 
     // `array' is another vector type.
-    template <typename T, std::size_t N1, std::size_t Align = 32>
+    template <typename T, size_t N1, size_t Align = 32>
     struct alignas(Align) array {
         using value_type = T;
 
-        using size_type = std::size_t;
+        using size_type = size_t;
 
         using difference_type = std::ptrdiff_t;
 
@@ -161,24 +163,24 @@ namespace pure_simd {
 
     namespace trait {
 
-        template <typename T, std::size_t N, std::size_t Align>
+        template <typename T, size_t N, size_t Align>
         struct as_vector<array<T, N, Align>> {
             template <typename U, typename...>
             using with_element = array<U, N, Align>;
 
             static constexpr bool is_vector = true;
 
-            static constexpr std::size_t size = N;
+            static constexpr size_t size = N;
 
-            template <std::size_t I>
+            template <size_t I>
             static constexpr auto elem_at(array<T, N, Align> x)
             {
                 return x[I];
             }
         };
 
-        template <typename T0, std::size_t N0, std::size_t Align0,
-            typename T1, std::size_t N1, std::size_t Align1>
+        template <typename T0, size_t N0, size_t Align0,
+            typename T1, size_t N1, size_t Align1>
         struct is_compatible<array<T0, N0, Align0>, array<T1, N1, Align1>>
             : std::integral_constant<bool, N0 == N1> {
         };
@@ -187,13 +189,13 @@ namespace pure_simd {
 
     namespace detail {
 
-        template <std::size_t Align, typename T, typename... Args, std::size_t... Is>
+        template <size_t Align, typename T, typename... Args, size_t... Is>
         inline auto to_array(tuple<T, Args...> xs, std::index_sequence<Is...>)
         {
             return pure_simd::array<T, sizeof...(Is), Align> { std::get<Is>(xs)... };
         }
 
-        template <typename T, std::size_t N, std::size_t Align, std::size_t... Is>
+        template <typename T, size_t N, size_t Align, size_t... Is>
         inline auto to_tuple(array<T, N, Align> xs, std::index_sequence<Is...>)
         {
             return tuple_n<T, N> { xs[Is]... };
@@ -201,27 +203,27 @@ namespace pure_simd {
 
     } // namespace detail
 
-    template <std::size_t Align = 32, typename... Args>
+    template <size_t Align = 32, typename... Args>
     inline auto to_array(tuple<Args...> xs)
     {
         return detail::to_array<Align>(xs, std::index_sequence_for<Args...> {});
     }
 
-    template <typename T, std::size_t N, std::size_t Align>
+    template <typename T, size_t N, size_t Align>
     inline auto to_tuple(array<T, N, Align> xs)
     {
         return detail::to_tuple(xs, std::make_index_sequence<N> {});
     }
 
     namespace detail {
-        template <typename F, typename V, std::size_t... Is>
+        template <typename F, typename V, size_t... Is>
         inline auto unroll_impl(F func, V x, std::index_sequence<Is...>)
             -> with_element_t<V, decltype(func(elem_at<Is>(x)))...>
         {
             return { func(elem_at<Is>(x))... };
         }
 
-        template <typename F, typename V0, typename V1, std::size_t... Is>
+        template <typename F, typename V0, typename V1, size_t... Is>
         inline auto unroll_impl(F func, V0 x, V1 y, std::index_sequence<Is...>)
             -> with_element_t<V0, decltype(func(elem_at<Is>(x), elem_at<Is>(y)))...>
         {
@@ -358,7 +360,7 @@ namespace pure_simd {
 
     namespace detail {
 
-        template <typename V, typename T, std::size_t... Is>
+        template <typename V, typename T, size_t... Is>
         inline void store_to_impl(V x, T* dst, std::index_sequence<Is...>)
         {
             [](auto...) {}(((dst[Is] = elem_at<Is>(x)), true)...);
@@ -374,10 +376,10 @@ namespace pure_simd {
 
     namespace detail {
 
-        template <std::size_t, typename T>
+        template <size_t, typename T>
         constexpr T identity(T x) { return x; }
 
-        template <typename V, typename T, std::size_t... Is>
+        template <typename V, typename T, size_t... Is>
         inline V scalar_impl(T x, std::index_sequence<Is...>)
         {
             return { identity<Is>(x)... };
@@ -393,7 +395,7 @@ namespace pure_simd {
 
     namespace detail {
 
-        template <typename V, typename T, std::size_t... Is>
+        template <typename V, typename T, size_t... Is>
         inline V load_from_impl(const T* src, std::index_sequence<Is...>)
         {
             return { src[Is]... };
@@ -417,7 +419,7 @@ namespace pure_simd {
 
     } // namespace detail
 
-    template <typename V, typename I = std::size_t, typename T, typename S, typename = must_be_vector<V>>
+    template <typename V, typename I = size_t, typename T, typename S, typename = must_be_vector<V>>
     inline V ascend_from(T start, S step)
     {
         return detail::ascend_from_impl<V>(
@@ -427,7 +429,7 @@ namespace pure_simd {
 
     namespace detail {
 
-        constexpr bool is_power_of_two(std::size_t N)
+        constexpr bool is_power_of_two(size_t N)
         {
             return (N & (N - 1)) == 0;
         }
@@ -440,8 +442,8 @@ namespace pure_simd {
         static constexpr T value = Value;
     };
 
-    template <std::size_t N>
-    using constexpr_size_t = constexpr_value_t<std::size_t, N>;
+    template <size_t N>
+    using constexpr_size_t = constexpr_value_t<size_t, N>;
 
     namespace detail {
 
@@ -484,11 +486,11 @@ namespace pure_simd {
         detail::unroll_loop_impl<S, Stride, Stride == S {}> {}(start, iterations, func);
     }
 
-    template <std::size_t Stride, typename I, typename F>
-    inline auto unroll_loop(I start, std::size_t iterations, F func)
+    template <size_t Stride, typename I, typename F>
+    inline auto unroll_loop(I start, size_t iterations, F func)
         -> decltype(func(constexpr_size_t<Stride> {}, start), void())
     {
-        detail::unroll_loop_impl<std::size_t, Stride, Stride == 0ull> {}(start, iterations, func);
+        detail::unroll_loop_impl<size_t, Stride, Stride == 0ull> {}(start, iterations, func);
     }
 
 } // namespace pure_simd
