@@ -436,61 +436,55 @@ namespace pure_simd {
 
     } // namespace detail
 
-    template <typename T, T Value>
-    struct constexpr_value_t {
-        using type = T;
-        static constexpr T value = Value;
-    };
-
     template <size_t N>
-    using constexpr_size_t = constexpr_value_t<size_t, N>;
+    using size_constant = std::integral_constant<size_t, N>;
 
     namespace detail {
 
-        template <typename S, S Stride, bool Zero>
+        template <typename S, S Step, bool ZeroStep>
         struct unroll_loop_impl;
 
-        template <typename S, S Value>
-        struct unroll_loop_impl<S, Value, true> {
+        template <typename S, S Step>
+        struct unroll_loop_impl<S, Step, true> {
             template <typename... Args>
             auto operator()(Args...) {}
         };
 
-        template <typename S, S Stride>
-        struct unroll_loop_impl<S, Stride, false> {
+        template <typename S, S Step>
+        struct unroll_loop_impl<S, Step, false> {
             template <typename I, typename F>
             auto operator()(I start, S iterations, F func)
-                -> decltype(func(constexpr_size_t<Stride> {}, start), void())
+                -> decltype(func(std::integral_constant<S, Step> {}, start), void())
             {
-                static_assert(Stride > 0ull && detail::is_power_of_two(Stride), "");
+                static_assert(Step > 0ull && detail::is_power_of_two(Step), "");
 
-                auto rem = iterations % Stride;
+                auto rem = iterations % Step;
                 auto bound = start + (iterations - rem);
 
-                for (auto i = start; i < bound; i += Stride) {
-                    func(constexpr_value_t<S, Stride> {}, i);
+                for (auto i = start; i < bound; i += Step) {
+                    func(std::integral_constant<S, Step> {}, i);
                 }
 
                 if (rem > 0) {
-                    unroll_loop_impl<S, Stride / 2, Stride / 2 == S {}> {}(bound, rem, func);
+                    unroll_loop_impl<S, Step / 2, Step / 2 == S {}> {}(bound, rem, func);
                 }
             }
         };
 
     } // namespace detail
 
-    template <typename S, S Stride, typename I, typename F>
+    template <typename S, S MaxStep, typename I, typename F>
     inline auto unroll_loop(I start, S iterations, F func)
-        -> decltype(func(constexpr_value_t<S, Stride> {}, start), void())
+        -> decltype(func(std::integral_constant<S, MaxStep> {}, start), void())
     {
-        detail::unroll_loop_impl<S, Stride, Stride == S {}> {}(start, iterations, func);
+        detail::unroll_loop_impl<S, MaxStep, MaxStep == S {}> {}(start, iterations, func);
     }
 
-    template <size_t Stride, typename I, typename F>
+    template <size_t MaxStep, typename I, typename F>
     inline auto unroll_loop(I start, size_t iterations, F func)
-        -> decltype(func(constexpr_size_t<Stride> {}, start), void())
+        -> decltype(func(size_constant<MaxStep> {}, start), void())
     {
-        detail::unroll_loop_impl<size_t, Stride, Stride == 0ull> {}(start, iterations, func);
+        detail::unroll_loop_impl<size_t, MaxStep, MaxStep == 0ull> {}(start, iterations, func);
     }
 
 } // namespace pure_simd

@@ -70,25 +70,13 @@ And there are two functions for switching between them.
     inline auto to_tuple(array<T, N, Align> xs);
 ```
 
+#### size_constant 
 
-
-#### constexpr_value_t 
-
-`constexpr_value_t` carries a value at the type level. Given an object of this type, you can access the carried **compile-time** value by `decltype(object)::value`.  It's often used in combination with `unroll_loop`.
+It's just an alias for convenience.
 
 ```c++
-    template <typename T, T Value>
-    struct constexpr_value_t {
-        using type = T;
-        static constexpr T value = Value;
-    };
-```
-
-For convenience,  an alias for std::size_t is provided.
-
-```c++
-    template <std::size_t N>
-    using constexpr_size_t = constexpr_value_t<std::size_t, N>;
+    template <size_t N>
+    using size_constant = std::integral_constant<size_t, N>;
 ```
 
 ### Basic Constructs
@@ -125,9 +113,9 @@ To facilitate the use of lambda,  two variants are provided.
 So you can write code like this:
 
 ```c++
-	auto zs = unroll(xs, ys, [](auto a, auto b) {
-		return a* b;
-	});
+    auto zs = unroll(xs, ys, [](auto a, auto b) {
+        return a * b;
+    });
 ```
 
 ### High-level Operations
@@ -174,25 +162,30 @@ You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conver
 
 When the number of iterations is not a multiple of your vectors' size, extra code is need to handle the tail end. `unroll_loop` can do that for you.
 
+`unroll_loop` decomposes a irregular loop into a series of subloops with successively halved steps and generates different loop bodies for them.
+
 ```c++
-    template <typename S, S Stride, typename I, typename F>
+    template <typename S, S MaxStep, typename I, typename F>
     inline auto unroll_loop(I start, S iterations, F func)
-        -> decltype(func(constexpr_value_t<S, Stride> {}, start), void());
+        -> decltype(func(std::integral_constant<S, MaxStep> {}, start), void())
 ```
 
-`func` should be a template function or a lambda, as it will be used to generate body for subloops of different size at compile time. `func` will be passed two arguments. The first one is an object of constexpr_value_t, telling you the size of vectors you should used in current loop. The second one is the iteration index in the global loop. 
+`func` should be a callable object or a generic lambda, as it will be used to generate bodies for subloops of different size at compile time. `func` will be passed two arguments. The first one tells you the step of current loop, which is usually used as vector size in that loop. The second one is the iteration index in the global loop. You may use it to access some data structure.
 
 For example, suppose there is a loop of 0 up to 15, and you want to use vectors of size 4 to vectorize it, Then you write:
 
 ```c++
-	unroll_loop<int, 4>(0, 15, [&](auto stride, int i) {
-            constexpr std::size_t vector_size = decltype(stride)::value;  // it will be 4, 2, 1
-            using fvec = array<float, vector_size>;  	
-            ...
-	});
+    // Use 4 as the maximum step.
+    // `step` will get value of 4, 2 and 1 at compile time.
+    // `i` will get value of  0, 4, 8, 12 and 14 at runtime.
+    unroll_loop<int, 4>(0, 15, [&](auto step, int i) {
+        constexpr std::size_t vector_size = decltype(step)::value;
+        using fvec = array<float, vector_size>;
+         ...
+    });
 ```
 
-Then `unroll_loop` will generate three loops,  iterating from 0 to 12, 12 to 14 and 14 to 15.
+Then `unroll_loop` will generate three loops,  iterating from 0 to 12 with step of 4,  12 to 14 with step of 2, and 14 to 15 with step of 1.
 
 At present,  the supported operations  are not enough, but it's easy to add new ones.
 
@@ -308,9 +301,9 @@ void pure_simd_tick(float scale, float* screen)
         float dx = scale / SCRWIDTH;
 
         // unroll_loop will handle the tail end for us.
-        unroll_loop<max_vector_size>(0, SCRWIDTH, [&](auto stride, int x) {
-            constexpr std::size_t vector_size = decltype(stride)::value;
-            using fvec = pure_simd::tuple_n<float, max_vector_size>;
+        unroll_loop<max_vector_size>(0, SCRWIDTH, [&](auto step, int x) {
+            constexpr std::size_t vector_size = decltype(step)::value;
+            using fvec = pure_simd::tuple_n<float, vector_size>;
             
             fvec ox = scalar<fvec>(0.0f);
             fvec oy = scalar<fvec>(0.0f);
