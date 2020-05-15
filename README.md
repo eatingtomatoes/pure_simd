@@ -12,6 +12,7 @@ A simple, extensible, portable, efficient and header-only SIMD library!
     + [High-level Operations](#high-level-operations) 
   * [Example](#example)
   * [Test and Benchmark](#test-and-benchmark)
+  * [Development Status](#development-status)
   * [To do](#to-do)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
@@ -365,7 +366,12 @@ cmake --build .
 ./bin/benchmark_pure_simd
 ```
 
+## Development Status
+
+This library has just taken its first baby step. It's now in the experimental stage, so the interfaces often change drastically.
+
 ## To Do
+
 * Add more operations  & documents 
 * Add examples & benchmarks
 * Keep consistencies across various compilers
