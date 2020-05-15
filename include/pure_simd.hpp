@@ -282,7 +282,7 @@ namespace pure_simd {
         return unroll(x, [](auto a) { return op a; });  \
     }
 
-#define OVERLOAD_COMPARATION_OPERATOR(op)                                          \
+#define OVERLOAD_COMPARISON_OPERATOR(op)                                           \
     template <                                                                     \
         typename V0,                                                               \
         typename V1,                                                               \
@@ -316,21 +316,21 @@ namespace pure_simd {
 
     OVERLOAD_UNARY_OPERATOR(!)
 
-    OVERLOAD_COMPARATION_OPERATOR(<)
+    OVERLOAD_COMPARISON_OPERATOR(<)
 
-    OVERLOAD_COMPARATION_OPERATOR(>)
+    OVERLOAD_COMPARISON_OPERATOR(>)
 
     OVERLOAD_BINARY_OPERATOR(<<)
 
     OVERLOAD_BINARY_OPERATOR(>>)
 
-    OVERLOAD_COMPARATION_OPERATOR(==)
+    OVERLOAD_COMPARISON_OPERATOR(==)
 
-    OVERLOAD_COMPARATION_OPERATOR(!=)
+    OVERLOAD_COMPARISON_OPERATOR(!=)
 
-    OVERLOAD_COMPARATION_OPERATOR(<=)
+    OVERLOAD_COMPARISON_OPERATOR(<=)
 
-    OVERLOAD_COMPARATION_OPERATOR(>=)
+    OVERLOAD_COMPARISON_OPERATOR(>=)
 
     OVERLOAD_BINARY_OPERATOR(&&)
 
@@ -338,7 +338,7 @@ namespace pure_simd {
 
 #undef OVERLOAD_BINARY_OPERATOR
 #undef OVERLOAD_UNARY_OPERATOR
-#undef OVERLOAD_COMPARATION_OPERATOR
+#undef OVERLOAD_COMPARISON_OPERATOR
 
     template <typename V, typename = must_be_vector<V>>
     inline V max(V x, V y)
