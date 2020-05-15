@@ -30,7 +30,7 @@ TEST(TestArray, Inteface)
     EXPECT_EQ(std::get<1>(t), 2);
     EXPECT_EQ(std::get<2>(t), 3);
     EXPECT_EQ(std::get<3>(t), 4);
-    EXPECT_EQ(std::get<4>(t), 5);    
+    EXPECT_EQ(std::get<4>(t), 5);
 }
 
 TEST(TestArray, UnrollUnaryOperation)
@@ -82,6 +82,17 @@ TEST(TestArray, UnrollBinaryOperation)
     EXPECT_EQ(bs[2], true);
     EXPECT_EQ(bs[3], true);
     EXPECT_EQ(bs[4], true);
+
+    array<bool, 5> mask { true, false, false, true, false };
+    vec ns = unroll(xs, mask, [](int a, bool b) {
+        return a * b;
+    });
+
+    EXPECT_EQ(ns[0], 0);
+    EXPECT_EQ(ns[1], 0);
+    EXPECT_EQ(ns[2], 0);
+    EXPECT_EQ(ns[3], 3);
+    EXPECT_EQ(ns[4], 0);
 }
 
 template <typename Vec>
@@ -96,7 +107,7 @@ bool all_equal(Vec xs, Vec ys)
 
 using bvec = array<bool, 5>;
 
-TEST(TestArray, Arithmetic)
+TEST(TestArray, BinaryOperator)
 {
     vec xs { 0, 1, 2, 3, 4 };
     vec ys { 5, 6, 7, 8, 9 };
@@ -121,6 +132,17 @@ TEST(TestArray, Arithmetic)
     EXPECT_VEC_EQUAL((bvec { 0 >= 5, 1 >= 6, 2 >= 7, 3 >= 8, 4 >= 9 }), xs >= ys);
     EXPECT_VEC_EQUAL((bvec { 0 && 5, 1 && 6, 2 && 7, 3 && 8, 4 && 9 }), xs && ys);
     EXPECT_VEC_EQUAL((bvec { 0 || 5, 1 || 6, 2 || 7, 3 || 8, 4 || 9 }), xs || ys);
+
+    auto is_even = [](int x) { return x % 2 == 0; };
+    vec zs = unroll(is_even, xs) * ys;
+
+    EXPECT_VEC_EQUAL(zs, (vec{ true * 5, false * 6, true * 7, false * 8, true * 9 }));
+
+    vec as { 5, 8, 2, 9, 7};
+    vec bs{ 2, 8, 3, 10, 6};
+    vec cs = (as <= bs) * ys;
+
+    EXPECT_VEC_EQUAL(cs, (vec{false * 5, true * 6, true * 7, true * 8, false * 9}));
 }
 
 TEST(TestArray, MinMax)

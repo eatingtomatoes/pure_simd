@@ -4,7 +4,7 @@
 
 #include "pure_simd.hpp"
 #include "gtest/gtest.h"
- 
+
 using namespace pure_simd;
 
 using vec = tuple_n<int, 5>;
@@ -23,13 +23,25 @@ TEST(TestTuple, Inteface)
 
     auto t = to_array(xs);
 
-    EXPECT_TRUE((std::is_same<decltype(t), array<int, 5>>::value));    
+    EXPECT_TRUE((std::is_same<decltype(t), array<int, 5>>::value));
 
     EXPECT_EQ(t[0], 1);
     EXPECT_EQ(t[1], 2);
     EXPECT_EQ(t[2], 3);
     EXPECT_EQ(t[3], 4);
-    EXPECT_EQ(t[4], 5);    
+    EXPECT_EQ(t[4], 5);
+
+    tuple_n<bool, 5> mask { true, false, false, true, false };
+    
+    vec ns = unroll(xs, mask, [](int a, bool b) {
+        return a * b;
+    });
+
+    EXPECT_EQ(std::get<0>(ns), 1);
+    EXPECT_EQ(std::get<1>(ns), 0);
+    EXPECT_EQ(std::get<2>(ns), 0);
+    EXPECT_EQ(std::get<3>(ns), 4);
+    EXPECT_EQ(std::get<4>(ns), 0);    
 }
 
 TEST(TestTuple, UnrollUnaryOperation)
@@ -101,7 +113,7 @@ bool all_equal(tuple<Args...> xs, tuple<Args...> ys)
 
 using bvec = tuple_n<bool, 5>;
 
-TEST(TestTuple, Arithmetic)
+TEST(TestTuple, BinaryOperator)
 {
     vec xs { 0, 1, 2, 3, 4 };
     vec ys { 5, 6, 7, 8, 9 };
@@ -128,6 +140,20 @@ TEST(TestTuple, Arithmetic)
     EXPECT_TRUE((std::is_same<bool, decltype(xs != ys)>::value));
     EXPECT_TRUE((std::is_same<bool, decltype(xs <= ys)>::value));
     EXPECT_TRUE((std::is_same<bool, decltype(xs >= ys)>::value));
+
+    auto is_even = [](int x) { return x % 2 == 0; };
+    vec zs = unroll(is_even, xs) * ys;
+
+    EXPECT_VEC_EQUAL(zs, (vec { true * 5, false * 6, true * 7, false * 8, true * 9 }));
+
+
+    auto le = [](auto a, auto b) { return a <= b; };
+
+    vec as { 5, 8, 2, 9, 7 };
+    vec bs { 2, 8, 3, 10, 6 };
+    vec cs = unroll(le, as, bs) * ys;
+
+    EXPECT_VEC_EQUAL(cs, (vec{false * 5, true * 6, true * 7, true * 8, false * 9}));
 }
 
 TEST(TestTuple, MinMax)

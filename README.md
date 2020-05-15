@@ -99,8 +99,13 @@ The `unroll` function unrolls unary/binary operations on vectors. The result's t
     template <typename F, typename V, typename = must_be_vector<V>>
     inline auto unroll(F func, V x);
 
-    template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(F func, V x, V y);
+    template <
+        typename F, typename V0, typename V1,
+        typename = must_be_vector<V0>,
+        typename = must_be_vector<V1>,
+		// V0 and V1 must have same container type, e.g. array, and same number of elements.
+        typename = must_be_compatible<V0, V1>>
+    inline auto unroll(F func, V0 x, V1 y);
 ```
 
 To facilitate the use of lambda,  two variants are provided.
@@ -109,8 +114,12 @@ To facilitate the use of lambda,  two variants are provided.
     template <typename F, typename V, typename = must_be_vector<V>>
     inline auto unroll(V x, F func);
 
-    template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(V x, V y, F func);
+    template <
+        typename F, typename V0, typename V1,
+        typename = must_be_vector<V0>,
+        typename = must_be_vector<V1>,
+        typename = must_be_compatible<V0, V1>>
+    inline auto unroll(V0 x, V1 y, F func);
 ```
 
 So you can write code like this:

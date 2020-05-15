@@ -45,6 +45,13 @@ namespace pure_simd {
         template <typename T>
         using index_sequence_of = std::make_index_sequence<size_v<T>>;
 
+        template <typename V1, typename V2>
+        struct is_compatible : std::false_type {
+        };
+
+        template <typename V1, typename V2>
+        using must_be_compatible = std::enable_if_t<is_compatible<V1, V2>::value>;
+
     } // namespace trait
 
     using namespace trait;
@@ -70,6 +77,21 @@ namespace pure_simd {
             }
         };
 
+        template <typename... Args0, typename... Args1>
+        struct is_compatible<tuple<Args0...>, tuple<Args1...>>
+            : std::integral_constant<bool, sizeof...(Args0) == sizeof...(Args1)> {
+        };
+
+        template <typename>
+        struct is_tuple : std::false_type {
+        };
+
+        template <typename... Args>
+        struct is_tuple<tuple<Args...>> {
+        };
+
+        template <typename V>
+        using not_tuple = std::enable_if_t<!is_tuple<V>::value>;
     }
 
     namespace detail {
@@ -155,6 +177,12 @@ namespace pure_simd {
             }
         };
 
+        template <typename T0, std::size_t N0, std::size_t Align0,
+            typename T1, std::size_t N1, std::size_t Align1>
+        struct is_compatible<array<T0, N0, Align0>, array<T1, N1, Align1>>
+            : std::integral_constant<bool, N0 == N1> {
+        };
+
     } // namespace trait
 
     namespace detail {
@@ -193,9 +221,9 @@ namespace pure_simd {
             return { func(elem_at<Is>(x))... };
         }
 
-        template <typename F, typename V, std::size_t... Is>
-        inline auto unroll_impl(F func, V x, V y, std::index_sequence<Is...>)
-            -> with_element_t<V, decltype(func(elem_at<Is>(x), elem_at<Is>(y)))...>
+        template <typename F, typename V0, typename V1, std::size_t... Is>
+        inline auto unroll_impl(F func, V0 x, V1 y, std::index_sequence<Is...>)
+            -> with_element_t<V0, decltype(func(elem_at<Is>(x), elem_at<Is>(y)))...>
         {
             return { func(elem_at<Is>(x), elem_at<Is>(y))... };
         }
@@ -208,10 +236,14 @@ namespace pure_simd {
         return detail::unroll_impl(func, x, index_sequence_of<V> {});
     }
 
-    template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(F func, V x, V y)
+    template <
+        typename F, typename V0, typename V1,
+        typename = must_be_vector<V0>,
+        typename = must_be_vector<V1>,
+        typename = must_be_compatible<V0, V1>>
+    inline auto unroll(F func, V0 x, V1 y)
     {
-        return detail::unroll_impl(func, x, y, index_sequence_of<V> {});
+        return detail::unroll_impl(func, x, y, index_sequence_of<V0> {});
     }
 
     template <typename F, typename V, typename = must_be_vector<V>>
@@ -220,150 +252,91 @@ namespace pure_simd {
         return detail::unroll_impl(func, x, index_sequence_of<V> {});
     }
 
-    template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(V x, V y, F func)
+    template <
+        typename F, typename V0, typename V1,
+        typename = must_be_vector<V0>,
+        typename = must_be_vector<V1>,
+        typename = must_be_compatible<V0, V1>>
+    inline auto unroll(V0 x, V1 y, F func)
     {
-        return detail::unroll_impl(func, x, y, index_sequence_of<V> {});
+        return detail::unroll_impl(func, x, y, index_sequence_of<V0> {});
     }
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator+(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a + b; });
+#define OVERLOAD_BINARY_OPERATOR(op)                                \
+    template <                                                      \
+        typename V0, typename V1,                                   \
+        typename = must_be_vector<V0>,                              \
+        typename = must_be_vector<V1>,                              \
+        typename = must_be_compatible<V0, V1>>                      \
+    inline auto operator op(V0 x, V1 y)                             \
+    {                                                               \
+        return unroll(x, y, [](auto a, auto b) { return a op b; }); \
     }
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator-(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a - b; });
+#define OVERLOAD_UNARY_OPERATOR(op)                     \
+    template <typename V, typename = must_be_vector<V>> \
+    inline auto operator op(V x)                        \
+    {                                                   \
+        return unroll(x, [](auto a) { return op a; });  \
     }
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator-(V x)
-    {
-        return unroll(x, [](auto a) { return -a; });
+#define OVERLOAD_COMPARATION_OPERATOR(op)                                          \
+    template <                                                                     \
+        typename V0,                                                               \
+        typename V1,                                                               \
+        typename = must_be_vector<V0>,                                             \
+        typename = must_be_vector<V1>,                                             \
+        typename = std::enable_if_t<!is_tuple<V0>::value || !is_tuple<V1>::value>> \
+    inline auto operator op(V0 x, V1 y)                                            \
+    {                                                                              \
+        return unroll(x, y, [](auto a, auto b) { return a op b; });                \
     }
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator*(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a * b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(+)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator/(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a / b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(-)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator%(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a % b; });
-    }
+    OVERLOAD_UNARY_OPERATOR(-)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator^(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a ^ b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(*)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator&(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a & b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(/)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator|(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a | b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(%)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator~(V x)
-    {
-        return unroll(x, [](auto a) { return ~a; });
-    }
+    OVERLOAD_BINARY_OPERATOR(^)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline auto operator!(V x)
-    {
-        return unroll(x, [](auto a) { return !a; });
-    }
+    OVERLOAD_BINARY_OPERATOR(&)
 
-    namespace detail {
-        template <typename>
-        struct is_tuple : std::false_type {
-        };
+    OVERLOAD_BINARY_OPERATOR(|)
 
-        template <typename... Args>
-        struct is_tuple<tuple<Args...>> {
-        };
+    OVERLOAD_UNARY_OPERATOR(~)
 
-        template <typename V>
-        using not_tuple = std::enable_if_t<!is_tuple<V>::value>;
-    }
+    OVERLOAD_UNARY_OPERATOR(!)
 
-    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
-    inline auto operator<(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a < b; });
-    }
+    OVERLOAD_COMPARATION_OPERATOR(<)
 
-    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
-    inline auto operator>(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a > b; });
-    }
+    OVERLOAD_COMPARATION_OPERATOR(>)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator<<(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a << b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(<<)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline V operator>>(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a >> b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(>>)
 
-    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
-    inline auto operator==(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a == b; });
-    }
+    OVERLOAD_COMPARATION_OPERATOR(==)
 
-    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
-    inline auto operator!=(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a != b; });
-    }
+    OVERLOAD_COMPARATION_OPERATOR(!=)
 
-    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
-    inline auto operator<=(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a <= b; });
-    }
+    OVERLOAD_COMPARATION_OPERATOR(<=)
 
-    template <typename V, typename = must_be_vector<V>, typename = detail::not_tuple<V>>
-    inline auto operator>=(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a >= b; });
-    }
+    OVERLOAD_COMPARATION_OPERATOR(>=)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline auto operator&&(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a && b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(&&)
 
-    template <typename V, typename = must_be_vector<V>>
-    inline auto operator||(V x, V y)
-    {
-        return unroll(x, y, [](auto a, auto b) { return a || b; });
-    }
+    OVERLOAD_BINARY_OPERATOR(||)
+
+#undef OVERLOAD_BINARY_OPERATOR
+#undef OVERLOAD_UNARY_OPERATOR
+#undef OVERLOAD_COMPARATION_OPERATOR
 
     template <typename V, typename = must_be_vector<V>>
     inline V max(V x, V y)
@@ -400,6 +373,7 @@ namespace pure_simd {
     }
 
     namespace detail {
+
         template <std::size_t, typename T>
         constexpr T identity(T x) { return x; }
 
