@@ -113,7 +113,7 @@ void pure_simd_tick(float scale, float* screen)
                 fvec ox_x_oy = ox * oy;
                 fvec oy_x_ox = oy * ox;
 
-                fvec xoffs4 = ascend_from<fvec>(xoffs, dx);
+                fvec xoffs4 = iota<fvec>(xoffs, dx);
                 fvec yoffs4 = scalar<fvec>(yoffs);
 
                 fvec dot_55 = scalar<fvec>(0.55f);

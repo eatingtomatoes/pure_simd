@@ -199,9 +199,9 @@ TEST(TestTuple, Scarlar)
     EXPECT_VEC_EQUAL((vec { 2, 2, 2, 2, 2 }), scalar<vec>(2));
 }
 
-TEST(TestTuple, AscendFrom)
+TEST(TestTuple, Iota)
 {
-    EXPECT_VEC_EQUAL((vec { 1, 3, 5, 7, 9 }), (ascend_from<vec, int>(1, 2)));
+    EXPECT_VEC_EQUAL((vec { 1, 3, 5, 7, 9 }), (iota<vec, int>(1, 2)));
 }
 
 TEST(TestTuple, UnrollLopp)

@@ -150,13 +150,13 @@ The `scalar_to` constructs a vector from a scalar value.
     inline V scalar(T x);
 ```
 
-The `ascend_from` constructs a vector of ascending sequence , that is, V{ start + step * 0, start + step * 1, ... }.
+The `iota` constructs a vector of ascending sequence , that is, V{ start + step * 0, start + step * 1, ... }.
 
 You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conversion.
 
 ```c++
     template <typename V, typename I = std::size_t, typename T, typename S, typename = must_be_vector<V>>
-    inline V ascend_from(T start, S step);
+    inline V iota(T start, S step);
 ```
 
 #### Helpers for unrolling loops 
@@ -315,7 +315,7 @@ void pure_simd_tick(float scale, float* screen)
                 fvec ox_x_oy = ox * oy;
                 fvec oy_x_ox = oy * ox;
 
-                fvec xoffs4 = ascend_from<fvec>(xoffs, dx);
+                fvec xoffs4 = iota<fvec>(xoffs, dx);
                 fvec yoffs4 = scalar<fvec>(yoffs);
 
                 fvec dot_55 = scalar<fvec>(0.55f);

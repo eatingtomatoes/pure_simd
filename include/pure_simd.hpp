@@ -412,7 +412,7 @@ namespace pure_simd {
     namespace detail {
 
         template <typename V, typename T, typename S, typename I, I... Is>
-        inline V ascend_from_impl(T start, S step, std::integer_sequence<I, Is...>)
+        inline V iota_impl(T start, S step, std::integer_sequence<I, Is...>)
         {
             return { (start + step * Is)... };
         };
@@ -420,9 +420,9 @@ namespace pure_simd {
     } // namespace detail
 
     template <typename V, typename I = size_t, typename T, typename S, typename = must_be_vector<V>>
-    inline V ascend_from(T start, S step)
+    inline V iota(T start, S step)
     {
-        return detail::ascend_from_impl<V>(
+        return detail::iota_impl<V>(
             start, step, std::make_integer_sequence<I, size_v<V>> {} //
         );
     }
