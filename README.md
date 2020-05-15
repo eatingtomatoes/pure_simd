@@ -65,10 +65,10 @@ And there are two functions for switching between them.
 
 ```c++
     template <std::size_t Align = 32, typename... Args>
-    inline auto to_array(tuple<Args...> xs);
+    constexpr auto to_array(tuple<Args...> xs);
 
     template <typename T, std::size_t N, std::size_t Align>
-    inline auto to_tuple(array<T, N, Align> xs);
+    constexpr auto to_tuple(array<T, N, Align> xs);
 ```
 
 #### size_constant 
@@ -86,7 +86,7 @@ The `unroll` function unrolls unary/binary operations on vectors. The result's t
 
 ```c++
     template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(F func, V x);
+    constexpr auto unroll(F func, V x);
 
     template <
         typename F, typename V0, typename V1,
@@ -94,21 +94,21 @@ The `unroll` function unrolls unary/binary operations on vectors. The result's t
         typename = must_be_vector<V1>,
 		// V0 and V1 must have same container type, e.g. array, and same number of elements.
         typename = must_be_compatible<V0, V1>>
-    inline auto unroll(F func, V0 x, V1 y);
+    constexpr auto unroll(F func, V0 x, V1 y);
 ```
 
 To facilitate the use of lambda,  two variants are provided.
 
 ```c++
     template <typename F, typename V, typename = must_be_vector<V>>
-    inline auto unroll(V x, F func);
+    constexpr auto unroll(V x, F func);
 
     template <
         typename F, typename V0, typename V1,
         typename = must_be_vector<V0>,
         typename = must_be_vector<V1>,
         typename = must_be_compatible<V0, V1>>
-    inline auto unroll(V0 x, V1 y, F func);
+    constexpr auto unroll(V0 x, V1 y, F func);
 ```
 
 So you can write code like this:
@@ -133,21 +133,21 @@ The `store_to` writes a vector's elements to continuous locations.
 
 ```c++
     template <typename V, typename T, typename = must_be_vector<V>>
-    inline void store_to(V x, T* dst);
+    constexpr void store_to(V x, T* dst);
 ```
 
 The `load_from` reads values from continuous locations to a vector.
 
 ```c++
     template <typename V, typename T, typename = must_be_vector<V>>
-    inline V load_from(const T* src);
+    constexpr V load_from(const T* src);
 ```
 
 The `scalar_to` constructs a vector from a scalar value.
 
 ```c++
     template <typename V, typename T, typename = must_be_vector<V>>
-    inline V scalar(T x);
+    constexpr V scalar(T x);
 ```
 
 The `iota` constructs a vector of ascending sequence , that is, V{ start + step * 0, start + step * 1, ... }.
@@ -156,7 +156,7 @@ You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conver
 
 ```c++
     template <typename V, typename I = std::size_t, typename T, typename S, typename = must_be_vector<V>>
-    inline V iota(T start, S step);
+    constexpr V iota(T start, S step);
 ```
 
 #### Helpers for unrolling loops 
@@ -167,7 +167,7 @@ When the number of iterations is not a multiple of your vectors' size, extra cod
 
 ```c++
     template <typename S, S MaxStep, typename I, typename F>
-    inline auto unroll_loop(I start, S iterations, F func)
+    constexpr auto unroll_loop(I start, S iterations, F func)
         -> decltype(func(std::integral_constant<S, MaxStep> {}, start), void())
 ```
 
