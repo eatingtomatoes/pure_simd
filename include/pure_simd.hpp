@@ -396,44 +396,102 @@ namespace pure_simd {
         return detail::gather_bits_impl<T>(xs, index_sequence_of<V> {});
     }
 
+    // Operations: sum.
     namespace detail {
-        template <size_t MaxStep, typename F, typename... Srcs, typename Dst>
-        constexpr void transform_impl(std::size_t n, F func, Dst dst, Srcs... srcs)
+        template <typename V, typename T, size_t... Is>
+        constexpr T sum_impl(V x, T init, std::index_sequence<Is...>)
         {
-            unroll_loop<MaxStep>(0, n, [=](auto step, int i) {
-                constexpr std::size_t vector_size = decltype(step)::value;
-                store_to(
-                    func(load_from<vector<std::decay_t<decltype(*srcs)>, vector_size>>(srcs + i)...),
-                    dst + i);
-            });
+            return (init + ... + x[Is]);
         }
-    } // namespace
+    } // namespace detail
 
-    // Both `src` and `dst` should be a random access iterator
-    // `func` should callable with a vector of values from src
-    template <size_t MaxStep, typename F, typename Src, typename Dst>
-    constexpr auto transform(Src src, Dst dst, size_t n, F func)
-        -> decltype(
-            *(src + MaxStep), *(dst + MaxStep),
-            func(vector<std::decay_t<decltype(*src)>, MaxStep> {}),
-            void() //
-        )
+    template <typename V, typename T, typename = must_be_vector<V>>
+    constexpr T sum(V x, T init)
     {
-        return detail::transform_impl<MaxStep>(n, func, dst, src);
+        return detail::sum_impl(x, init, index_sequence_of<V> {});
     }
 
-    // `src1`, `src2` and `dst` should be random access iterators
-    // `func` should callable with vectors of values from `src1` and `src2`
-    template <size_t MaxStep, typename F, typename Src1, typename Src2, typename Dst>
-    constexpr auto transform(Src1 src1, Src2 src2, Dst dst, size_t n, F func)
-        -> decltype(
-            *(src1 + MaxStep), *(src2 + MaxStep), *(dst + MaxStep),
-            func(vector<std::decay_t<decltype(*src1)>, MaxStep> {},
-                vector<std::decay_t<decltype(*src2)>, MaxStep> {}),
-            void() //
-        )
+    // Algorithms: transform, accumulate, and inner_product.
+    template <size_t VectorSize, typename F, typename T, typename S>
+    constexpr void transform(const S* src, size_t n, T* dst, F func)
     {
-        return detail::transform_impl<MaxStep>(n, func, dst, src1, src2);
+        using SourceVec = pure_simd::vector<S, VectorSize>;
+
+        auto rem = n % VectorSize;
+        auto loops = n / VectorSize;
+
+        for (size_t i = 0; i < loops; ++i, src += VectorSize, dst += VectorSize)
+            store_to(unroll(load_from<SourceVec>(src), func), dst);
+
+        std::transform(src, src + rem, dst, func);
+    }
+
+    template <size_t VectorSize, typename F, typename T, typename S0, typename S1>
+    constexpr void transform(const S0* src0, size_t n, const S1* src1, T* dst, F func)
+    {
+        using Source0Vec = pure_simd::vector<S0, VectorSize>;
+        using Source1Vec = pure_simd::vector<S1, VectorSize>;
+
+        auto rem = n % VectorSize;
+        auto loops = n / VectorSize;
+
+        for (size_t i = 0; i < loops; ++i, src0 += VectorSize, src1 += VectorSize, dst += VectorSize)
+            store_to(unroll(load_from<Source0Vec>(src0), load_from<Source1Vec>(src1), func), dst);
+
+        std::transform(src0, src0 + rem, src1, dst, func);
+    }
+
+    template <size_t VectorSize, typename T, typename S, typename F>
+    constexpr auto accumulate(const S* src, size_t n, T init, F func)
+    {
+        using Source = vector<S, VectorSize>;
+        using Target = vector<T, VectorSize>;
+
+        auto rem = n % VectorSize;
+        auto loops = n / VectorSize;
+
+        auto sum = scalar<Target>(init);
+        for (size_t i = 0; i < loops; ++i, src += VectorSize)
+            sum = unroll(sum, load_from<Source>(src), func);
+
+        std::transform(src, src + rem, sum.begin(), sum.begin(), [&](auto val, auto curr) {
+            return func(curr, val);
+        });
+
+        return sum;
+    }
+
+    template <size_t VectorSize, typename T, typename S>
+    constexpr auto accumulate(const S* src, size_t n, T init)
+    {
+        return accumulate<VectorSize>(src, n, init, std::plus<>());
+    }
+
+    template <size_t VectorSize, typename T, typename S1, typename S2, typename FAdd, typename FMultiply>
+    constexpr auto inner_product(const S1* src1, size_t n, const S2* src2, T init, FAdd f_add, FMultiply f_multiply)
+    {
+        using Source1 = vector<S1, VectorSize>;
+        using Source2 = vector<S2, VectorSize>;
+        using Target = vector<T, VectorSize>;
+
+        auto rem = n % VectorSize;
+        auto loops = n / VectorSize;
+
+        auto sum = scalar<Target>(init);
+        for (size_t i = 0; i < loops; ++i, src1 += VectorSize, src2 += VectorSize)
+            sum = unroll(sum, unroll(load_from<Source1>(src1), load_from<Source2>(src2), f_multiply), f_add);
+
+        auto tar = sum.begin();
+        for (size_t i = 0; i < rem; ++i, ++src1, ++src2, ++tar)
+            *tar = f_add(*tar, f_multiply(*src1, *src2));
+
+        return sum;
+    }
+
+    template <size_t VectorSize, typename T, typename S1, typename S2>
+    constexpr auto inner_product(const S1* src1, size_t n, const S2* src2, T init)
+    {
+        return inner_product<VectorSize>(src1, n, src2, init, std::plus<>(), std::multiplies<>());
     }
 
 } // namespace pure_simd

@@ -191,18 +191,29 @@ For example, suppose there is a loop of 0 up to 15, and you want to use vectors 
 
 Then `unroll_loop` will generate three loops,  iterating from 0 to 12 with step of 4,  12 to 14 with step of 2, and 14 to 15 with step of 1.
 
-The following two functions behave like std::transform. 
+The following functions work in a way similar to the corresponding ones in the c++ standard library.
 
 ```c++
-    // Both `src` and `dst` should be a random access iterator.
-    // `func` should callable with a vector of values from src.
-    template <size_t MaxStep, typename F, typename Src, typename Dst>
-    constexpr auto transform(Src src, Dst dst, size_t n, F func);
+    template <typename V, typename T, typename = must_be_vector<V>>
+    constexpr T sum(V x, T init);
 
-    // `src1`, `src2` and `dst` should be random access iterators
-    // `func` should callable with vectors of values from `src1` and `src2`
-    template <size_t MaxStep, typename F, typename Src1, typename Src2, typename Dst>
-    constexpr auto transform(Src1 src1, Src2 src2, Dst dst, size_t n, F func);
+    template <size_t VectorSize, typename F, typename T, typename S>
+    constexpr void transform(const S* src, size_t n, T* dst, F func);
+
+    template <size_t VectorSize, typename F, typename T, typename S0, typename S1>
+    constexpr void transform(const S0* src0, size_t n, const S1* src1, T* dst, F func);
+
+    template <size_t VectorSize, typename T, typename S, typename F>
+    constexpr auto accumulate(const S* src, size_t n, T init, F func);
+
+    template <size_t VectorSize, typename T, typename S>
+    constexpr auto accumulate(const S* src, size_t n, T init);
+
+    template <size_t VectorSize, typename T, typename S1, typename S2, typename FAdd, typename FMultiply>
+    constexpr auto inner_product(const S1* src1, size_t n, const S2* src2, T init, FAdd f_add, FMultiply f_multiply);
+
+    template <size_t VectorSize, typename T, typename S1, typename S2>
+    constexpr auto inner_product(const S1* src1, size_t n, const S2* src2, T init);
 ```
 
 At present,  the supported operations  are not enough, but it's easy to add new ones.
