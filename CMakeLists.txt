@@ -8,7 +8,12 @@ set(CMAKE_CXX_FLAGS "-O3 -march=native")
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
-include_directories(include benchmark)
+include_directories(include example)
+
+add_library(
+  use_pure_simd
+  example/simple_shader.cpp
+  )
 
 add_executable(
   benchmark_pure_simd
@@ -19,18 +24,19 @@ add_executable(
 target_link_libraries(
   benchmark_pure_simd
   ${CONAN_LIBS_BENCHMARK}
+  use_pure_simd
   )
 
 add_executable(
   test_pure_simd
-  test/test_array.cpp
-  test/test_tuple.cpp
-  test/test_simple_shader.cpp
-  benchmark/simple_shader.cpp  
+  test/array.cpp
+  test/tuple.cpp
+  test/simple_shader.cpp
   )
 
 target_link_libraries(
   test_pure_simd
   ${CONAN_LIBS_GTEST}
+  use_pure_simd
   )
 
