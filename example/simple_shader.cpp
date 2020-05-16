@@ -102,7 +102,7 @@ void pure_simd_tick(float scale, float* screen)
         // unroll_loop will handle the tail end for us.
         unroll_loop<max_vector_size>(0, SCRWIDTH, [&](auto step, int x) {
             constexpr std::size_t vector_size = decltype(step)::value;
-            using fvec = pure_simd::tuple_n<float, vector_size>;
+            using fvec = pure_simd::vector<float, vector_size>;
 
             fvec ox = scalar<fvec>(0.0f);
             fvec oy = scalar<fvec>(0.0f);

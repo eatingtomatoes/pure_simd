@@ -46,29 +46,13 @@ All definitions of types and functions sit in the namespace `pure_simd`.
 
 ### Types
 
-#### vector
+#### array
 
-Vector in Pure SIMD models a sequence values. At present, Pure SIMD supports two concrete vector type: `pure_simd::array` and `pure_simd::tuple`.  The former is an aligned version of `std::array`, and the latter is just an alias of `std::tuple`.  
+Pure SIMD uses `vector`, which is an aligned version of std::array, to model a sequence of values. 
 
 ```c++
     template <typename T, std::size_t N, std::size_t Align = 32>
-    struct alignas(Align) array;
-
-    template <typename... Args>
-    using tuple = std::tuple<Args...>;
-
-    template <typename T, std::size_t N>
-    using tuple_n = typename tuple<T, T, ...> // tuple of N T values
-```
-
-And there are two functions for switching between them.
-
-```c++
-    template <std::size_t Align = 32, typename... Args>
-    constexpr auto to_array(tuple<Args...> xs);
-
-    template <typename T, std::size_t N, std::size_t Align>
-    constexpr auto to_tuple(array<T, N, Align> xs);
+    struct alignas(Align) vector;
 ```
 
 #### size_constant 
@@ -86,29 +70,28 @@ The `unroll` function unrolls unary/binary operations on vectors. The result's t
 
 ```c++
     template <typename F, typename V, typename = must_be_vector<V>>
-    constexpr auto unroll(F func, V x);
+    constexpr auto unroll(F func, V xs);
 
-    template <
+     template <
         typename F, typename V0, typename V1,
         typename = must_be_vector<V0>,
         typename = must_be_vector<V1>,
-		// V0 and V1 must have same container type, e.g. array, and same number of elements.
-        typename = must_be_compatible<V0, V1>>
-    constexpr auto unroll(F func, V0 x, V1 y);
+        typename = assert_same_size<V0, V1>>
+    constexpr auto unroll(F func, V0 xs, V1 ys);
 ```
 
 To facilitate the use of lambda,  two variants are provided.
 
 ```c++
     template <typename F, typename V, typename = must_be_vector<V>>
-    constexpr auto unroll(V x, F func);
+    constexpr auto unroll(V xs, F func);
 
     template <
         typename F, typename V0, typename V1,
         typename = must_be_vector<V0>,
         typename = must_be_vector<V1>,
-        typename = must_be_compatible<V0, V1>>
-    constexpr auto unroll(V0 x, V1 y, F func);
+        typename = assert_same_size<V0, V1>>
+    constexpr auto unroll(V0 xs, V1 ys, F func);
 ```
 
 So you can write code like this:
@@ -133,7 +116,7 @@ The `store_to` writes a vector's elements to continuous locations.
 
 ```c++
     template <typename V, typename T, typename = must_be_vector<V>>
-    constexpr void store_to(V x, T* dst);
+    constexpr void store_to(V xs, T* dst)
 ```
 
 The `load_from` reads values from continuous locations to a vector.
@@ -155,7 +138,10 @@ The `iota` constructs a vector of ascending sequence , that is, V{ start + step 
 You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conversion.
 
 ```c++
-    template <typename V, typename I = std::size_t, typename T, typename S, typename = must_be_vector<V>>
+    template <
+        typename V, typename I = size_t,
+        typename T, typename S,
+        typename = must_be_vector<V>>
     constexpr V iota(T start, S step);
 ```
 
@@ -181,7 +167,7 @@ For example, suppose there is a loop of 0 up to 15, and you want to use vectors 
     // `i` will get value of  0, 4, 8, 12 and 14 at runtime.
     unroll_loop<int, 4>(0, 15, [&](auto step, int i) {
         constexpr std::size_t vector_size = decltype(step)::value;
-        using fvec = array<float, vector_size>;
+        using fvec = vector<float, vector_size>;
          ...
     });
 ```
@@ -304,7 +290,7 @@ void pure_simd_tick(float scale, float* screen)
         // unroll_loop will handle the tail end for us.
         unroll_loop<max_vector_size>(0, SCRWIDTH, [&](auto step, int x) {
             constexpr std::size_t vector_size = decltype(step)::value;
-            using fvec = pure_simd::tuple_n<float, vector_size>;
+            using fvec = pure_simd::vector<float, vector_size>;
             
             fvec ox = scalar<fvec>(0.0f);
             fvec oy = scalar<fvec>(0.0f);

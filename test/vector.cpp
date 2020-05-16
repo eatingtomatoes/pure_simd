@@ -7,13 +7,13 @@
 
 using namespace pure_simd;
 
-using vec = array<int, 5>;
+using vec = vector<int, 5>;
 
-TEST(TestArray, Inteface)
+TEST(TestVector, Inteface)
 {
     vec xs { 1, 2, 3, 4, 5 };
 
-    EXPECT_EQ(xs.N, 5);
+    EXPECT_EQ(xs.size(), 5);
 
     EXPECT_EQ(xs[0], 1);
     EXPECT_EQ(xs[1], 2);
@@ -22,18 +22,9 @@ TEST(TestArray, Inteface)
     EXPECT_EQ(xs[4], 5);
 
     EXPECT_EQ(std::accumulate(xs.begin(), xs.end(), 0), 15);
-
-    auto t = to_tuple(xs);
-
-    EXPECT_TRUE((std::is_same<decltype(t), tuple_n<int, 5>>::value));
-    EXPECT_EQ(std::get<0>(t), 1);
-    EXPECT_EQ(std::get<1>(t), 2);
-    EXPECT_EQ(std::get<2>(t), 3);
-    EXPECT_EQ(std::get<3>(t), 4);
-    EXPECT_EQ(std::get<4>(t), 5);
 }
 
-TEST(TestArray, UnrollUnaryOperation)
+TEST(TestVector, UnrollUnaryOperation)
 {
     vec xs { 0, 1, 2, 3, 4 };
 
@@ -54,7 +45,7 @@ TEST(TestArray, UnrollUnaryOperation)
     ASSERT_EQ(zs[4], 10);
 }
 
-TEST(TestArray, UnrollBinaryOperation)
+TEST(TestVector, UnrollBinaryOperation)
 {
     vec xs { 0, 1, 2, 3, 4 };
     vec ys { 5, 6, 7, 8, 9 };
@@ -75,7 +66,7 @@ TEST(TestArray, UnrollBinaryOperation)
     EXPECT_EQ(ws[3], 24);
     EXPECT_EQ(ws[4], 36);
 
-    array<bool, 5> bs = unroll(zs, ws, [](int a, int b) { return a < b; });
+    vector<bool, 5> bs = unroll(zs, ws, [](int a, int b) { return a < b; });
 
     EXPECT_EQ(bs[0], false);
     EXPECT_EQ(bs[1], false);
@@ -83,7 +74,7 @@ TEST(TestArray, UnrollBinaryOperation)
     EXPECT_EQ(bs[3], true);
     EXPECT_EQ(bs[4], true);
 
-    array<bool, 5> mask { true, false, false, true, false };
+    vector<bool, 5> mask { true, false, false, true, false };
     vec ns = unroll(xs, mask, [](int a, bool b) {
         return a * b;
     });
@@ -105,9 +96,9 @@ bool all_equal(Vec xs, Vec ys)
 #define EXPECT_VEC_EQUAL(xs, ys) \
     EXPECT_TRUE(all_equal((xs), (ys)))
 
-using bvec = array<bool, 5>;
+using bvec = vector<bool, 5>;
 
-TEST(TestArray, BinaryOperator)
+TEST(TestVector, BinaryOperator)
 {
     vec xs { 0, 1, 2, 3, 4 };
     vec ys { 5, 6, 7, 8, 9 };
@@ -145,7 +136,7 @@ TEST(TestArray, BinaryOperator)
     EXPECT_VEC_EQUAL(cs, (vec{false * 5, true * 6, true * 7, true * 8, false * 9}));
 }
 
-TEST(TestArray, MinMax)
+TEST(TestVector, MinMax)
 {
     vec xs { 5, 1, 2, 8, 4 };
     vec ys { 0, 6, 7, 3, 9 };
@@ -154,13 +145,13 @@ TEST(TestArray, MinMax)
     EXPECT_VEC_EQUAL((vec { 5, 6, 7, 8, 9 }), max(xs, ys));
 }
 
-TEST(TestArray, Cast)
+TEST(TestVector, Cast)
 {
     vec xs { 0, 1, 0, 0, 1 };
     EXPECT_VEC_EQUAL((bvec { false, true, false, false, true }), cast_to<bool>(xs));
 }
 
-TEST(TestArray, StoreLoad)
+TEST(TestVector, StoreLoad)
 {
     int nums[5] { 1, 2, 3, 4, 5 };
 
@@ -183,17 +174,17 @@ TEST(TestArray, StoreLoad)
     ASSERT_EQ(xnums[4], 5);
 }
 
-TEST(TestArray, Scarlar)
+TEST(TestVector, Scarlar)
 {
     EXPECT_VEC_EQUAL((vec { 2, 2, 2, 2, 2 }), scalar<vec>(2));
 }
 
-TEST(TestArray, Iota)
+TEST(TestVector, Iota)
 {
     EXPECT_VEC_EQUAL((vec { 1, 3, 5, 7, 9 }), (iota<vec, int>(1, 2)));
 }
 
-TEST(TestArray, UnrollLopp)
+TEST(TestVector, UnrollLopp)
 {
     bool four_stride = false;
     bool two_stride = false;

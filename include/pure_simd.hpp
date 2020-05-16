@@ -9,115 +9,11 @@ namespace pure_simd {
 
     using size_t = std::size_t;
 
-    namespace trait {
+    template <typename T, size_t N, size_t Align = 32>
+    struct alignas(Align) vector {
+        template <typename U>
+        using with_value_t = vector<U, N, Align>;
 
-        // Every concrete vector type should specialize the `as_vector' struct.
-        template <typename V>
-        struct as_vector {
-            // The vector type after original elements' types replaced with new ones
-            // template <typename... Args>
-            // using with_element_t;
-
-            static constexpr bool is_vector = false;
-
-            // static constexpr size;
-
-            // template <size_t I, typename V>
-            // auto elem_at(V x);
-        };
-
-        template <typename V, typename... Args>
-        using with_element_t = typename as_vector<V>::template with_element<Args...>;
-
-        template <typename T>
-        constexpr bool is_vector_v = as_vector<T>::is_vector;
-
-        template <typename T>
-        using must_be_vector = std::enable_if_t<is_vector_v<T>>;
-
-        template <typename V>
-        constexpr size_t size_v = as_vector<V>::size;
-
-        template <size_t I, typename V>
-        constexpr auto elem_at(V x)
-        {
-            return as_vector<V>::template elem_at<I>(x);
-        }
-
-        template <typename T>
-        using index_sequence_of = std::make_index_sequence<size_v<T>>;
-
-        template <typename V1, typename V2>
-        struct is_compatible : std::false_type {
-        };
-
-        template <typename V1, typename V2>
-        using must_be_compatible = std::enable_if_t<is_compatible<V1, V2>::value>;
-
-    } // namespace trait
-
-    using namespace trait;
-
-    template <typename... Args>
-    using tuple = std::tuple<Args...>;
-
-    namespace trait {
-
-        template <typename... Args>
-        struct as_vector<tuple<Args...>> {
-            template <typename... Args1>
-            using with_element = tuple<Args1...>;
-
-            static constexpr bool is_vector = true;
-
-            static constexpr size_t size = sizeof...(Args);
-
-            template <size_t I>
-            static constexpr auto elem_at(tuple<Args...> x)
-            {
-                return std::get<I>(x);
-            }
-        };
-
-        template <typename... Args0, typename... Args1>
-        struct is_compatible<tuple<Args0...>, tuple<Args1...>>
-            : std::integral_constant<bool, sizeof...(Args0) == sizeof...(Args1)> {
-        };
-
-        template <typename>
-        struct is_tuple : std::false_type {
-        };
-
-        template <typename... Args>
-        struct is_tuple<tuple<Args...>> {
-        };
-
-        template <typename V>
-        using not_tuple = std::enable_if_t<!is_tuple<V>::value>;
-    }
-
-    namespace detail {
-
-        template <typename T, size_t>
-        using type_of = T;
-
-        template <typename, typename>
-        struct tuple_n_impl {
-        };
-
-        template <typename T, size_t... Is>
-        struct tuple_n_impl<T, std::index_sequence<Is...>> {
-            using type = tuple<type_of<T, Is>...>;
-        };
-
-    } // namespace detail
-
-    template <typename T, size_t N>
-    using tuple_n = typename detail::tuple_n_impl<T, std::make_index_sequence<N>>::type;
-
-    // `array' is another vector type.
-    template <typename T, size_t N1, size_t Align = 32>
-    struct alignas(Align) array {
         using value_type = T;
 
         using size_type = size_t;
@@ -140,8 +36,6 @@ namespace pure_simd {
 
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-        static constexpr size_t N = N1;
-
         constexpr T& operator[](size_t pos) { return data[pos]; }
 
         constexpr T operator[](size_t pos) const { return data[pos]; }
@@ -158,110 +52,90 @@ namespace pure_simd {
 
         constexpr const_iterator cend() const { return data + N; }
 
+        static constexpr size_t size() { return N; }
+
         T data[N];
     };
 
-    namespace trait {
+    inline namespace trait {
 
-        template <typename T, size_t N, size_t Align>
-        struct as_vector<array<T, N, Align>> {
-            template <typename U, typename...>
-            using with_element = array<U, N, Align>;
-
-            static constexpr bool is_vector = true;
-
-            static constexpr size_t size = N;
-
-            template <size_t I>
-            static constexpr auto elem_at(array<T, N, Align> x)
-            {
-                return x[I];
-            }
+        template <typename T>
+        struct is_vector : std::false_type {
         };
 
-        template <typename T0, size_t N0, size_t Align0,
-            typename T1, size_t N1, size_t Align1>
-        struct is_compatible<array<T0, N0, Align0>, array<T1, N1, Align1>>
+        template <typename T, size_t N, size_t A>
+        struct is_vector<vector<T, N, A>> : std::true_type {
+        };
+
+        template <typename T>
+        using must_be_vector = std::enable_if_t<is_vector<T>::value>;
+
+        template <typename T>
+        using index_sequence_of = std::make_index_sequence<T::size()>;
+
+        template <typename V1, typename V2>
+        struct same_size : std::false_type {
+        };
+
+        template <
+            typename T0, size_t N0, size_t A0,
+            typename T1, size_t N1, size_t A1>
+        struct same_size<vector<T0, N0, A0>, vector<T1, N1, A1>>
             : std::integral_constant<bool, N0 == N1> {
         };
+
+        template <typename V1, typename V2>
+        using assert_same_size = std::enable_if_t<same_size<V1, V2>::value>;
 
     } // namespace trait
 
     namespace detail {
-
-        template <size_t Align, typename T, typename... Args, size_t... Is>
-        constexpr auto to_array(tuple<T, Args...> xs, std::index_sequence<Is...>)
-        {
-            return pure_simd::array<T, sizeof...(Is), Align> { std::get<Is>(xs)... };
-        }
-
-        template <typename T, size_t N, size_t Align, size_t... Is>
-        constexpr auto to_tuple(array<T, N, Align> xs, std::index_sequence<Is...>)
-        {
-            return tuple_n<T, N> { xs[Is]... };
-        }
-
-    } // namespace detail
-
-    template <size_t Align = 32, typename... Args>
-    constexpr auto to_array(tuple<Args...> xs)
-    {
-        return detail::to_array<Align>(xs, std::index_sequence_for<Args...> {});
-    }
-
-    template <typename T, size_t N, size_t Align>
-    constexpr auto to_tuple(array<T, N, Align> xs)
-    {
-        return detail::to_tuple(xs, std::make_index_sequence<N> {});
-    }
-
-    namespace detail {
         template <typename F, typename V, size_t... Is>
-        constexpr auto unroll_impl(F func, V x, std::index_sequence<Is...>)
-            -> with_element_t<V, decltype(func(elem_at<Is>(x)))...>
+        constexpr auto unroll_impl(F func, V xs, std::index_sequence<Is...>)
+            -> typename V::template with_value_t<decltype(func(xs[0]))>
         {
-            return { func(elem_at<Is>(x))... };
+            return { func(xs[Is])... };
         }
 
         template <typename F, typename V0, typename V1, size_t... Is>
-        constexpr auto unroll_impl(F func, V0 x, V1 y, std::index_sequence<Is...>)
-            -> with_element_t<V0, decltype(func(elem_at<Is>(x), elem_at<Is>(y)))...>
+        constexpr auto unroll_impl(F func, V0 xs, V1 ys, std::index_sequence<Is...>)
+            -> typename V0::template with_value_t<decltype(func(xs[0], ys[0]))>
         {
-            return { func(elem_at<Is>(x), elem_at<Is>(y))... };
+            return { func(xs[Is], ys[Is])... };
         }
 
     } // namespace detail
 
     template <typename F, typename V, typename = must_be_vector<V>>
-    constexpr auto unroll(F func, V x)
+    constexpr auto unroll(F func, V xs)
     {
-        return detail::unroll_impl(func, x, index_sequence_of<V> {});
+        return detail::unroll_impl(func, xs, index_sequence_of<V> {});
     }
 
     template <
         typename F, typename V0, typename V1,
         typename = must_be_vector<V0>,
         typename = must_be_vector<V1>,
-        typename = must_be_compatible<V0, V1>>
-    constexpr auto unroll(F func, V0 x, V1 y)
+        typename = assert_same_size<V0, V1>>
+    constexpr auto unroll(F func, V0 xs, V1 ys)
     {
-        return detail::unroll_impl(func, x, y, index_sequence_of<V0> {});
+        return detail::unroll_impl(func, xs, ys, index_sequence_of<V0> {});
     }
 
     template <typename F, typename V, typename = must_be_vector<V>>
-    constexpr auto unroll(V x, F func)
+    constexpr auto unroll(V xs, F func)
     {
-        return detail::unroll_impl(func, x, index_sequence_of<V> {});
+        return detail::unroll_impl(func, xs, index_sequence_of<V> {});
     }
 
     template <
         typename F, typename V0, typename V1,
         typename = must_be_vector<V0>,
         typename = must_be_vector<V1>,
-        typename = must_be_compatible<V0, V1>>
-    constexpr auto unroll(V0 x, V1 y, F func)
+        typename = assert_same_size<V0, V1>>
+    constexpr auto unroll(V0 xs, V1 ys, F func)
     {
-        return detail::unroll_impl(func, x, y, index_sequence_of<V0> {});
+        return detail::unroll_impl(func, xs, ys, index_sequence_of<V0> {});
     }
 
 #define OVERLOAD_BINARY_OPERATOR(op)                                \
@@ -269,29 +143,29 @@ namespace pure_simd {
         typename V0, typename V1,                                   \
         typename = must_be_vector<V0>,                              \
         typename = must_be_vector<V1>,                              \
-        typename = must_be_compatible<V0, V1>>                      \
-    constexpr auto operator op(V0 x, V1 y)                             \
+        typename = assert_same_size<V0, V1>>                        \
+    constexpr auto operator op(V0 xs, V1 ys)                          \
     {                                                               \
-        return unroll(x, y, [](auto a, auto b) { return a op b; }); \
+        return unroll(xs, ys, [](auto a, auto b) { return a op b; }); \
     }
 
 #define OVERLOAD_UNARY_OPERATOR(op)                     \
     template <typename V, typename = must_be_vector<V>> \
-    constexpr auto operator op(V x)                        \
+    constexpr auto operator op(V xs)                     \
     {                                                   \
-        return unroll(x, [](auto a) { return op a; });  \
+        return unroll(xs, [](auto a) { return op a; });  \
     }
 
-#define OVERLOAD_COMPARISON_OPERATOR(op)                                           \
-    template <                                                                     \
-        typename V0,                                                               \
-        typename V1,                                                               \
-        typename = must_be_vector<V0>,                                             \
-        typename = must_be_vector<V1>,                                             \
-        typename = std::enable_if_t<!is_tuple<V0>::value || !is_tuple<V1>::value>> \
-    constexpr auto operator op(V0 x, V1 y)                                            \
-    {                                                                              \
-        return unroll(x, y, [](auto a, auto b) { return a op b; });                \
+#define OVERLOAD_COMPARISON_OPERATOR(op)                            \
+    template <                                                      \
+        typename V0,                                                \
+        typename V1,                                                \
+        typename = must_be_vector<V0>,                              \
+        typename = must_be_vector<V1>,                              \
+        typename = assert_same_size<V0, V1>>                        \
+    constexpr auto operator op(V0 xs, V1 ys)                          \
+    {                                                               \
+        return unroll(xs, ys, [](auto a, auto b) { return a op b; }); \
     }
 
     OVERLOAD_BINARY_OPERATOR(+)
@@ -341,56 +215,56 @@ namespace pure_simd {
 #undef OVERLOAD_COMPARISON_OPERATOR
 
     template <typename V, typename = must_be_vector<V>>
-    constexpr V max(V x, V y)
+    constexpr V max(V xs, V ys)
     {
-        return unroll(x, y, [](auto a, auto b) { return std::max(a, b); });
+        return unroll(xs, ys, [](auto a, auto b) { return std::max(a, b); });
     }
 
     template <typename V, typename = must_be_vector<V>>
-    constexpr V min(V x, V y)
+    constexpr V min(V xs, V ys)
     {
-        return unroll(x, y, [](auto a, auto b) { return std::min(a, b); });
+        return unroll(xs, ys, [](auto a, auto b) { return std::min(a, b); });
     }
 
     template <typename T, typename V, typename = must_be_vector<V>>
-    constexpr auto cast_to(V x)
+    constexpr auto cast_to(V xs)
     {
-        return unroll(x, [](auto a) { return static_cast<T>(a); });
+        return unroll(xs, [](auto a) { return static_cast<T>(a); });
     }
 
     namespace detail {
 
         template <typename V, typename T, size_t... Is>
-        constexpr void store_to_impl(V x, T* dst, std::index_sequence<Is...>)
+        constexpr void store_to_impl(V xs, T* dst, std::index_sequence<Is...>)
         {
-            [](auto...) {}(((dst[Is] = elem_at<Is>(x)), true)...);
+            [](auto...) {}(((dst[Is] = xs[Is]), true)...);
         }
 
     } // namespace detail
 
     template <typename V, typename T, typename = must_be_vector<V>>
-    constexpr void store_to(V x, T* dst)
+    constexpr void store_to(V xs, T* dst)
     {
-        detail::store_to_impl(x, dst, index_sequence_of<V> {});
+        detail::store_to_impl(xs, dst, index_sequence_of<V> {});
     }
 
     namespace detail {
 
         template <size_t, typename T>
-        constexpr T identity(T x) { return x; }
+        constexpr T identity(T xs) { return xs; }
 
         template <typename V, typename T, size_t... Is>
-        constexpr V scalar_impl(T x, std::index_sequence<Is...>)
+        constexpr V scalar_impl(T xs, std::index_sequence<Is...>)
         {
-            return { identity<Is>(x)... };
+            return { identity<Is>(xs)... };
         }
 
     } // namespace detail
 
     template <typename V, typename T, typename = must_be_vector<V>>
-    constexpr V scalar(T x)
+    constexpr V scalar(T xs)
     {
-        return detail::scalar_impl<V>(x, index_sequence_of<V> {});
+        return detail::scalar_impl<V>(xs, index_sequence_of<V> {});
     }
 
     namespace detail {
@@ -419,11 +293,14 @@ namespace pure_simd {
 
     } // namespace detail
 
-    template <typename V, typename I = size_t, typename T, typename S, typename = must_be_vector<V>>
+    template <
+        typename V, typename I = size_t,
+        typename T, typename S,
+        typename = must_be_vector<V>>
     constexpr V iota(T start, S step)
     {
         return detail::iota_impl<V>(
-            start, step, std::make_integer_sequence<I, size_v<V>> {} //
+            start, step, std::make_integer_sequence<I, V::size()> {} //
         );
     }
 

@@ -29,8 +29,7 @@ target_link_libraries(
 
 add_executable(
   test_pure_simd
-  test/array.cpp
-  test/tuple.cpp
+  test/vector.cpp
   test/simple_shader.cpp
   )
 
