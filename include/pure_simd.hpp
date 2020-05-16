@@ -1,9 +1,8 @@
 #ifndef PURE_SIMD_H
 #define PURE_SIMD_H
 
-#include <array>
+#include <climits>
 #include <functional>
-#include <tuple>
 
 namespace pure_simd {
 
@@ -138,33 +137,33 @@ namespace pure_simd {
         return detail::unroll_impl(func, xs, ys, index_sequence_of<V0> {});
     }
 
-#define OVERLOAD_BINARY_OPERATOR(op)                                \
-    template <                                                      \
-        typename V0, typename V1,                                   \
-        typename = must_be_vector<V0>,                              \
-        typename = must_be_vector<V1>,                              \
-        typename = assert_same_size<V0, V1>>                        \
+#define OVERLOAD_BINARY_OPERATOR(op)                                  \
+    template <                                                        \
+        typename V0, typename V1,                                     \
+        typename = must_be_vector<V0>,                                \
+        typename = must_be_vector<V1>,                                \
+        typename = assert_same_size<V0, V1>>                          \
     constexpr auto operator op(V0 xs, V1 ys)                          \
-    {                                                               \
+    {                                                                 \
         return unroll(xs, ys, [](auto a, auto b) { return a op b; }); \
     }
 
 #define OVERLOAD_UNARY_OPERATOR(op)                     \
     template <typename V, typename = must_be_vector<V>> \
-    constexpr auto operator op(V xs)                     \
+    constexpr auto operator op(V xs)                    \
     {                                                   \
-        return unroll(xs, [](auto a) { return op a; });  \
+        return unroll(xs, [](auto a) { return op a; }); \
     }
 
-#define OVERLOAD_COMPARISON_OPERATOR(op)                            \
-    template <                                                      \
-        typename V0,                                                \
-        typename V1,                                                \
-        typename = must_be_vector<V0>,                              \
-        typename = must_be_vector<V1>,                              \
-        typename = assert_same_size<V0, V1>>                        \
+#define OVERLOAD_COMPARISON_OPERATOR(op)                              \
+    template <                                                        \
+        typename V0,                                                  \
+        typename V1,                                                  \
+        typename = must_be_vector<V0>,                                \
+        typename = must_be_vector<V1>,                                \
+        typename = assert_same_size<V0, V1>>                          \
     constexpr auto operator op(V0 xs, V1 ys)                          \
-    {                                                               \
+    {                                                                 \
         return unroll(xs, ys, [](auto a, auto b) { return a op b; }); \
     }
 
@@ -362,6 +361,39 @@ namespace pure_simd {
         -> decltype(func(size_constant<MaxStep> {}, start), void())
     {
         detail::unroll_loop_impl<size_t, MaxStep, MaxStep == 0ull> {}(start, iterations, func);
+    }
+
+    namespace detail {
+        template <typename V, typename T, size_t... Is>
+        constexpr V scatter_bits_impl(T bits, std::index_sequence<Is...>)
+        {
+            return { static_cast<typename V::value_type>(((bits >> Is) & 0x01))... };
+        }
+
+    } // namespace detail
+
+    template <typename V, typename T, typename = must_be_vector<V>>
+    constexpr V scatter_bits(T bits)
+    {
+        return detail::scatter_bits_impl<V>(bits, index_sequence_of<V> {});
+    }
+
+    namespace detail {
+        template <typename T, size_t Idx, typename V>
+        constexpr T gather_bit(V x) { return static_cast<T>((x[Idx] != 0) << Idx); }
+
+        template <typename T, typename V, size_t... Is>
+        constexpr T gather_bits_impl(V xs, std::index_sequence<Is...>)
+        {
+            return (gather_bit<T, Is>(xs) | ...);
+        }
+    } // namespace detail
+
+    template <typename T, typename V, typename = must_be_vector<V>>
+    constexpr T gather_bits(V xs)
+    {
+        static_assert((sizeof(T) * CHAR_BIT) >= xs.size());
+        return detail::gather_bits_impl<T>(xs, index_sequence_of<V> {});
     }
 
 } // namespace pure_simd

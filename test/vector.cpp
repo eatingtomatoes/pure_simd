@@ -127,13 +127,13 @@ TEST(TestVector, BinaryOperator)
     auto is_even = [](int x) { return x % 2 == 0; };
     vec zs = unroll(is_even, xs) * ys;
 
-    EXPECT_VEC_EQUAL(zs, (vec{ true * 5, false * 6, true * 7, false * 8, true * 9 }));
+    EXPECT_VEC_EQUAL(zs, (vec { true * 5, false * 6, true * 7, false * 8, true * 9 }));
 
-    vec as { 5, 8, 2, 9, 7};
-    vec bs{ 2, 8, 3, 10, 6};
+    vec as { 5, 8, 2, 9, 7 };
+    vec bs { 2, 8, 3, 10, 6 };
     vec cs = (as <= bs) * ys;
 
-    EXPECT_VEC_EQUAL(cs, (vec{false * 5, true * 6, true * 7, true * 8, false * 9}));
+    EXPECT_VEC_EQUAL(cs, (vec { false * 5, true * 6, true * 7, true * 8, false * 9 }));
 }
 
 TEST(TestVector, MinMax)
@@ -207,4 +207,40 @@ TEST(TestVector, UnrollLopp)
     });
 
     EXPECT_EQ(sum, 4 * 3 + 2 * 1 + 1 * 1);
+}
+
+TEST(TestVector, ScatterBits)
+{
+    using vec = vector<int, 8>;
+
+    vec xs = scatter_bits<vec>(0b111101010111);
+
+    EXPECT_EQ(xs[0], 1);
+    EXPECT_EQ(xs[1], 1);
+    EXPECT_EQ(xs[2], 1);
+    EXPECT_EQ(xs[3], 0);
+    EXPECT_EQ(xs[4], 1);
+    EXPECT_EQ(xs[5], 0);
+    EXPECT_EQ(xs[6], 1);
+    EXPECT_EQ(xs[7], 0);
+}
+
+TEST(TestVector, GatherBits)
+{
+    using vec = vector<int, 8>;
+
+    vec xs {
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+    };
+
+    char y = gather_bits<char>(xs);
+
+    EXPECT_EQ(y, 0b01010111);
 }

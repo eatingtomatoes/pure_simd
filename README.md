@@ -145,6 +145,23 @@ You can use a specific type for 0, 1 ... so as to avoid  unnecessary type conver
     constexpr V iota(T start, S step);
 ```
 
+#### Scatter & Gather Operations
+
+`scatter_bits` constructs a vector from all bits of a scalar value. 
+
+For instance, scatter_bits(0b01010111) => vector { 1, 1, 1, 0, 1, 0, 1, 0 }.
+
+`gather_bits` does the opposite of `scatter_bits`.
+
+```c++
+    template <typename V, typename T, typename = must_be_vector<V>>
+    constexpr V scatter_bits(T bits);
+    
+    template <typename T, typename V, typename = must_be_vector<V>>
+    constexpr T gather_bits(V xs);    
+```
+
+
 #### Helpers for unrolling loops 
 
 When the number of iterations is not a multiple of your vectors' size, extra code is need to handle the tail end. `unroll_loop` can do that for you.
