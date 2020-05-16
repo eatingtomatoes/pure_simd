@@ -19,6 +19,7 @@ add_executable(
   benchmark_pure_simd
   benchmark/main.cpp
   benchmark/simple_shader.cpp
+  benchmark/sum.cpp
   )
 
 target_link_libraries(
@@ -31,6 +32,7 @@ add_executable(
   test_pure_simd
   test/vector.cpp
   test/simple_shader.cpp
+  test/sum.cpp
   )
 
 target_link_libraries(

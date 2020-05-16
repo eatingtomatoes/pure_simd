@@ -13,7 +13,7 @@
             func_name(scale, screen.data());                 \
         }                                                    \
     }                                                        \
-    BENCHMARK(BM_##func_name)->Unit(benchmark::kMillisecond)
+    BENCHMARK(BM_##func_name) ->Unit(benchmark::kMillisecond)
 
 BENCHMARK_FOR(automatic_tick);
 BENCHMARK_FOR(intrinsic_tick);

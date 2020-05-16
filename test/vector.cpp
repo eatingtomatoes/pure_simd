@@ -245,26 +245,28 @@ TEST(TestVector, GatherBits)
     EXPECT_EQ(y, 0b01010111);
 }
 
-TEST(TestVector, Transform)
+TEST(TestVector, Sum)
 {
-    int xs[] { 0, 1, 2, 3, 4 };
-    int ys[5] {};
+    std::vector<int> v1(15);
+    std::iota(v1.begin(), v1.end(), 0);
 
-    transform<2>(xs, ys, 5, [](auto xs) { return xs; });
+    auto generic_acc = std::accumulate(v1.begin(), v1.end(), 0);
+    auto simd_acc = sum(accumulate<4>(v1.data(), 15, 0), 0);
+    EXPECT_FLOAT_EQ(generic_acc, simd_acc);
+}
 
-    EXPECT_EQ(ys[0], 0);
-    EXPECT_EQ(ys[1], 1);
-    EXPECT_EQ(ys[2], 2);
-    EXPECT_EQ(ys[3], 3);
-    EXPECT_EQ(ys[4], 4);
+TEST(TestVector, InnerProduct)
+{
+    std::vector<int> v1(15);
+    std::iota(v1.begin(), v1.end(), 0);
+    
+    std::vector<float> v2(15);
+    std::iota(v2.begin(), v2.end(), 0);
+    for (auto& v : v2)
+        v = v / 10.0f;
 
-    int zs[5]{};
+    auto generic_innerproduct = std::inner_product(v1.begin(), v1.end(), v2.begin(), 0.0f);
+    auto simd_innerproduct = pure_simd::sum(pure_simd::inner_product<4>(v1.data(), 15, v2.data(), 0.0f), 0.0f);
 
-    transform<2>(xs, ys, zs, 5, [](auto xs){ return xs + ys; });
-
-    EXPECT_EQ(zs[0], 0);
-    EXPECT_EQ(zs[1], 2);
-    EXPECT_EQ(zs[2], 4);
-    EXPECT_EQ(zs[3], 6);
-    EXPECT_EQ(zs[4], 8);
+    EXPECT_FLOAT_EQ(generic_innerproduct, simd_innerproduct);
 }
