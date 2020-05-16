@@ -396,6 +396,46 @@ namespace pure_simd {
         return detail::gather_bits_impl<T>(xs, index_sequence_of<V> {});
     }
 
+    namespace detail {
+        template <size_t MaxStep, typename F, typename... Srcs, typename Dst>
+        constexpr void transform_impl(std::size_t n, F func, Dst dst, Srcs... srcs)
+        {
+            unroll_loop<MaxStep>(0, n, [=](auto step, int i) {
+                constexpr std::size_t vector_size = decltype(step)::value;
+                store_to(
+                    func(load_from<vector<std::decay_t<decltype(*srcs)>, vector_size>>(srcs + i)...),
+                    dst + i);
+            });
+        }
+    } // namespace
+
+    // Both `src` and `dst` should be a random access iterator
+    // `func` should callable with a vector of values from src
+    template <size_t MaxStep, typename F, typename Src, typename Dst>
+    constexpr auto transform(Src src, Dst dst, size_t n, F func)
+        -> decltype(
+            *(src + MaxStep), *(dst + MaxStep),
+            func(vector<std::decay_t<decltype(*src)>, MaxStep> {}),
+            void() //
+        )
+    {
+        return detail::transform_impl<MaxStep>(n, func, dst, src);
+    }
+
+    // `src1`, `src2` and `dst` should be random access iterators
+    // `func` should callable with vectors of values from `src1` and `src2`
+    template <size_t MaxStep, typename F, typename Src1, typename Src2, typename Dst>
+    constexpr auto transform(Src1 src1, Src2 src2, Dst dst, size_t n, F func)
+        -> decltype(
+            *(src1 + MaxStep), *(src2 + MaxStep), *(dst + MaxStep),
+            func(vector<std::decay_t<decltype(*src1)>, MaxStep> {},
+                vector<std::decay_t<decltype(*src2)>, MaxStep> {}),
+            void() //
+        )
+    {
+        return detail::transform_impl<MaxStep>(n, func, dst, src1, src2);
+    }
+
 } // namespace pure_simd
 
 #endif /* PURE_SIMD_H */

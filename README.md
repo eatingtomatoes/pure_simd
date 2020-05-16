@@ -191,6 +191,20 @@ For example, suppose there is a loop of 0 up to 15, and you want to use vectors 
 
 Then `unroll_loop` will generate three loops,  iterating from 0 to 12 with step of 4,  12 to 14 with step of 2, and 14 to 15 with step of 1.
 
+The following two functions behave like std::transform. 
+
+```c++
+    // Both `src` and `dst` should be a random access iterator.
+    // `func` should callable with a vector of values from src.
+    template <size_t MaxStep, typename F, typename Src, typename Dst>
+    constexpr auto transform(Src src, Dst dst, size_t n, F func);
+
+    // `src1`, `src2` and `dst` should be random access iterators
+    // `func` should callable with vectors of values from `src1` and `src2`
+    template <size_t MaxStep, typename F, typename Src1, typename Src2, typename Dst>
+    constexpr auto transform(Src1 src1, Src2 src2, Dst dst, size_t n, F func);
+```
+
 At present,  the supported operations  are not enough, but it's easy to add new ones.
 
 ## Example

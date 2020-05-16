@@ -244,3 +244,27 @@ TEST(TestVector, GatherBits)
 
     EXPECT_EQ(y, 0b01010111);
 }
+
+TEST(TestVector, Transform)
+{
+    int xs[] { 0, 1, 2, 3, 4 };
+    int ys[5] {};
+
+    transform<2>(xs, ys, 5, [](auto xs) { return xs; });
+
+    EXPECT_EQ(ys[0], 0);
+    EXPECT_EQ(ys[1], 1);
+    EXPECT_EQ(ys[2], 2);
+    EXPECT_EQ(ys[3], 3);
+    EXPECT_EQ(ys[4], 4);
+
+    int zs[5]{};
+
+    transform<2>(xs, ys, zs, 5, [](auto xs){ return xs + ys; });
+
+    EXPECT_EQ(zs[0], 0);
+    EXPECT_EQ(zs[1], 2);
+    EXPECT_EQ(zs[2], 4);
+    EXPECT_EQ(zs[3], 6);
+    EXPECT_EQ(zs[4], 8);
+}
