@@ -38,7 +38,7 @@ This simple idea brings the following **advantages** to Pure SIMD:
 
 ## Compiler Requirements
 
-C++14 & SLP vectorization.
+C++17 & SLP vectorization.
 
 ## Interface
 
