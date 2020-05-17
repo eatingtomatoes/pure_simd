@@ -116,7 +116,7 @@ TEST(TestVector, BinaryOperator)
     EXPECT_VEC_EQUAL((bvec { 0 < 5, 1 < 6, 2 < 7, 3 < 8, 4 < 9 }), xs < ys);
     EXPECT_VEC_EQUAL((bvec { 0 > 5, 1 > 6, 2 > 7, 3 > 8, 4 > 9 }), xs > ys);
     EXPECT_VEC_EQUAL((vec { 0 << 5, 1 << 6, 2 << 7, 3 << 8, 4 << 9 }), xs << ys);
-    EXPECT_VEC_EQUAL((vec { 0 >> 5, 1 >> 6, 2 >> 7, 3 >> 8, 4 >> 9 }), xs >> ys);
+    EXPECT_VEC_EQUAL((vec { 5 >> 0, 6 >> 1, 7 >> 2, 8 >> 3, 9 >> 4 }), ys >> xs);
     EXPECT_VEC_EQUAL((bvec { 0 == 5, 1 == 6, 2 == 7, 3 == 8, 4 == 9 }), xs == ys);
     EXPECT_VEC_EQUAL((bvec { 0 != 5, 1 != 6, 2 != 7, 3 != 8, 4 != 9 }), xs != ys);
     EXPECT_VEC_EQUAL((bvec { 0 <= 5, 1 <= 6, 2 <= 7, 3 <= 8, 4 <= 9 }), xs <= ys);
@@ -182,6 +182,15 @@ TEST(TestVector, Scarlar)
 TEST(TestVector, Iota)
 {
     EXPECT_VEC_EQUAL((vec { 1, 3, 5, 7, 9 }), (iota<vec, int>(1, 2)));
+
+    using fvec = vector<float, 5>;
+    fvec xs = iota<fvec>(0.1f, 1.0f);
+    
+    EXPECT_FLOAT_EQ(xs[0], 0.1f);
+    EXPECT_FLOAT_EQ(xs[1], 1.1f);
+    EXPECT_FLOAT_EQ(xs[2], 2.1f);
+    EXPECT_FLOAT_EQ(xs[3], 3.1f);
+    EXPECT_FLOAT_EQ(xs[4], 4.1f);
 }
 
 TEST(TestVector, UnrollLopp)
@@ -259,7 +268,7 @@ TEST(TestVector, InnerProduct)
 {
     std::vector<int> v1(15);
     std::iota(v1.begin(), v1.end(), 0);
-    
+
     std::vector<float> v2(15);
     std::iota(v2.begin(), v2.end(), 0);
     for (auto& v : v2)
