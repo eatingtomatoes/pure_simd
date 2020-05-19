@@ -5,6 +5,19 @@
 #include <functional>
 
 namespace pure_simd {
+#if __AVX512BW__ | __AVX512CD__ | __AVX512DQ__ | __AVX512F__ | __AVX512VL__
+    constexpr int register_size_bits = 512;
+#elif __AVX__
+    constexpr int register_size_bits = 256;
+#else
+    constexpr int register_size_bits = 128;
+#endif
+
+    constexpr int register_size = register_size_bits / CHAR_BIT;
+
+    template<typename T, typename... Ts>
+    constexpr int native_vectorsize() { return register_size / std::max({0UL, sizeof(T), (sizeof(Ts))...}); }
+
 
     using size_t = std::size_t;
 
@@ -52,6 +65,7 @@ namespace pure_simd {
         constexpr const_iterator cend() const { return data + N; }
 
         static constexpr size_t size() { return N; }
+        static constexpr size_t align() { return Align; }
 
         T data[N];
     };
@@ -103,6 +117,13 @@ namespace pure_simd {
             return { func(xs[Is], ys[Is])... };
         }
 
+        template <typename F, typename V0, typename V1, typename V2, size_t... Is>
+        constexpr auto unroll_impl(F func, V0 xs, V1 ys, V2 zs, std::index_sequence<Is...>)
+            -> typename V0::template with_value_t<decltype(func(xs[0], ys[0], zs[0]))>
+        {
+            return { func(xs[Is], ys[Is], zs[Is])... };
+        }
+
     } // namespace detail
 
     template <typename F, typename V, typename = must_be_vector<V>>
@@ -121,6 +142,18 @@ namespace pure_simd {
         return detail::unroll_impl(func, xs, ys, index_sequence_of<V0> {});
     }
 
+    template <
+        typename F, typename V0, typename V1, typename V2,
+        typename = must_be_vector<V0>,
+        typename = must_be_vector<V1>,
+        typename = must_be_vector<V2>,
+        typename = assert_same_size<V0, V1>,
+        typename = assert_same_size<V0, V2>>
+    constexpr auto unroll(F func, V0 xs, V1 ys, V2 zs)
+    {
+        return detail::unroll_impl(func, xs, ys, zs, index_sequence_of<V0> {});
+    }
+
     template <typename F, typename V, typename = must_be_vector<V>>
     constexpr auto unroll(V xs, F func)
     {
@@ -135,6 +168,18 @@ namespace pure_simd {
     constexpr auto unroll(V0 xs, V1 ys, F func)
     {
         return detail::unroll_impl(func, xs, ys, index_sequence_of<V0> {});
+    }
+
+    template <
+        typename F, typename V0, typename V1, typename V2,
+        typename = must_be_vector<V0>,
+        typename = must_be_vector<V1>,
+        typename = must_be_vector<V2>,
+        typename = assert_same_size<V0, V1>,
+        typename = assert_same_size<V0, V2>>
+    constexpr auto unroll(V0 xs, V1 ys, V2 zs, F func)
+    {
+        return detail::unroll_impl(func, xs, ys, zs, index_sequence_of<V0> {});
     }
 
 #define OVERLOAD_BINARY_OPERATOR(op)                                  \
@@ -214,6 +259,48 @@ namespace pure_simd {
 #undef OVERLOAD_COMPARISON_OPERATOR
 
     template <typename V, typename = must_be_vector<V>>
+    constexpr V abs(V xs)
+    {
+        return unroll(xs, [](auto a) { return std::abs(a); });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    constexpr V ceil(V xs)
+    {
+        return unroll(xs, [](auto a) { return std::ceil(a); });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    constexpr V floor(V xs)
+    {
+        return unroll(xs, [](auto a) { return std::floor(a); });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    constexpr V round(V xs)
+    {
+        return unroll(xs, [](auto a) { return std::round(a); });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    constexpr auto lround(V xs)
+    {
+        return unroll(xs, [](auto a) { return std::lround(a); });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    constexpr auto llround(V xs)
+    {
+        return unroll(xs, [](auto a) { return std::llround(a); });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
+    constexpr V trunc(V xs)
+    {
+        return unroll(xs, [](auto a) { return std::trunc(a); });
+    }
+
+    template <typename V, typename = must_be_vector<V>>
     constexpr V max(V xs, V ys)
     {
         return unroll(xs, ys, [](auto a, auto b) { return std::max(a, b); });
@@ -225,10 +312,66 @@ namespace pure_simd {
         return unroll(xs, ys, [](auto a, auto b) { return std::min(a, b); });
     }
 
+    template <typename V, typename = must_be_vector<V>>
+    constexpr V clamp(V xs, typename V::value_type lo, typename V::value_type hi)
+    {
+        return unroll(xs, [lo, hi](auto a) { return std::clamp(a, lo, hi); });
+    }
+
+    template <
+        typename V0, typename V1, typename V2,
+        typename = must_be_vector<V0>,
+        typename = must_be_vector<V1>,
+        typename = must_be_vector<V2>,
+        typename = assert_same_size<V0, V1>,
+        typename = assert_same_size<V0, V2>>
+    constexpr auto multiply_add(V0 as, V1 bs, V2 cs)
+    {
+        return unroll(as, bs, cs, [](auto a, auto b, auto c) { return (a * b) + c; });
+    }
+
     template <typename T, typename V, typename = must_be_vector<V>>
     constexpr auto cast_to(V xs)
     {
         return unroll(xs, [](auto a) { return static_cast<T>(a); });
+    }
+
+    namespace detail {
+        template <typename V, typename VIdx, size_t... Is>
+        constexpr auto permute_impl(V xs, VIdx idxs, std::index_sequence<Is...>)
+            -> vector<typename V::value_type, VIdx::size(), V::align()>
+        {
+            return { (xs[idxs[Is]])... };
+        }
+
+    } // namespace detail
+
+    template <
+        typename V, typename VIdx,
+        typename = must_be_vector<V>,
+        typename = must_be_vector<VIdx>>
+    constexpr auto permute(V xs, VIdx idxs)
+    {
+        return detail::permute_impl(xs, idxs, index_sequence_of<VIdx> {});
+    }
+
+    namespace detail {
+        template <typename Vselect, typename V, size_t... Is>
+        constexpr auto select_impl(Vselect vsel, std::array<V, 2> va, std::index_sequence<Is...>)
+            -> vector<typename V::value_type, Vselect::size(), V::align()>
+        {
+            return { (va[vsel[Is]][Is])... };
+        }
+
+    } // namespace detail
+
+    template <
+        typename VSelect, typename V,
+        typename = must_be_vector<VSelect>,
+        typename = must_be_vector<V>>
+    constexpr auto select(VSelect vs, V xs, V ys)
+    {
+        return detail::select_impl(vs, std::array<V, 2>({xs, ys}), index_sequence_of<VSelect> {});
     }
 
     namespace detail {
