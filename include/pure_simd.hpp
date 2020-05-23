@@ -3,6 +3,7 @@
 
 #include <climits>
 #include <functional>
+#include <cmath>
 
 namespace pure_simd {
 #if __AVX512BW__ | __AVX512CD__ | __AVX512DQ__ | __AVX512F__ | __AVX512VL__
