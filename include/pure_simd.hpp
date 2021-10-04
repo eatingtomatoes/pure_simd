@@ -524,7 +524,7 @@ namespace pure_simd {
 
     namespace detail {
         template <typename T, size_t Idx, typename V>
-        constexpr T gather_bit(V x) { return static_cast<T>((x[Idx] != 0) << Idx); }
+        constexpr T gather_bit(V x) { return static_cast<T>(x[Idx] != 0) << Idx; }
 
         template <typename T, typename V, size_t... Is>
         constexpr T gather_bits_impl(V xs, std::index_sequence<Is...>)
